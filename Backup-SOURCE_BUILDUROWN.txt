@@ -1,0 +1,33 @@
+Download Codeblocks, include a compiler ( codeblocks-17.12mingw-setup.exe ) because I can't figure out how to add one to it.
+Or any coding environment program for that matter.
+
+Install Codeblocks
+
+Open Codeblocks
+
+Hit Create a new project
+
+Choose Console application, click Go
+
+Hit Next and choose C
+MAKE SURE ITS NOT C++ CAUSE THIS IS C CODE OK
+
+Title it like Backup or something
+
+Bam make it
+
+On the left pane click the + next to Sources
+
+Double click on main.c
+
+paste in the source code
+
+Click the cog at the top
+
+Copy the Backup.exe from ProjectName\bin\Debug
+
+Paste it to wherever you want with the accompanying required files
+Backup_destinationLocale.txt
+Backup_saveLocales.txt
+
+And put words in those files, open Backup.exe and you did it all good job

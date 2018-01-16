@@ -1,0 +1,589 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <windows.h>
+#define sleep(x) Sleep(1000 * x) //fix for everywhere you google is Linux that is sleep while Windows is Sleep so it renames it and makes it count in seconds
+
+#define maxLocaleLength 1024 // Maximum length allowed
+
+//GOAL: RUN ROBOCOPY TO COPY FILES FROM LIST OF SOURCES TO DESTINATION. READ DESTINATION LOCATION AND SOURCE LIST FROM TEXT FILES.
+int main()
+{
+    //Introduce program
+    printf("  ____           _____ _____ _____   ____ _____ _______ _____ _    _   ____          _____ _  ___    _ _____  \n");
+    printf(" |  _ \\   /\\    / ____|_   _/ ____| |  _ \\_   _|__   __/ ____| |  | | |  _ \\   /\\   / ____| |/ / |  | |  __ \\ \n");
+    printf(" | |_) | /  \\  | (___   | || |      | |_) || |    | | | |    | |__| | | |_) | /  \\ | |    | ' /| |  | | |__) |\n");
+    printf(" |  _ < / /\\ \\  \\___ \\  | || |      |  _ < | |    | | | |    |  __  | |  _ < / /\\ \\| |    |  < | |  | |  ___/ \n");
+    printf(" | |_) / ____ \\ ____) |_| || |____  | |_) || |_   | | | |____| |  | | | |_) / ____ \\ |____| . \\| |__| | |     \n");
+    printf(" |____/_/    \\_\\_____/|_____\\_____| |____/_____|  |_|  \\_____|_|  |_| |____/_/    \\_\\_____|_|\\_\\\\____/|_|     \n");
+    printf("\t\t\tNota Bene: Omne plebes sunt elementa canes in meo oculo.\n");
+    //Any gender can be a basic bitch so don't get too hung up on it this is gender-inclusive. #woke?
+
+    //***************************DECLARE CONSTANT-SIZED VARIABLES*************************************************************
+    //FILE-READING RELATED STUFF
+    FILE *fdest; //file pointer for destination text file
+    FILE *fsaves; //file pointer for save locations text file
+    char c; // prep character reader
+    int saves_numberNOTYET = 0; //counter for number of save lines (temp to determine real lines)
+    int saves_number = 0; //counter for number of save lines
+    char saves_localesTemp[maxLocaleLength-1] = {'\0'}; //prep temporary holder for save locales, -1 for removing colon (e.g. C:\ -> C\)
+    char destination[maxLocaleLength] = {'\0'}; //prep destination location
+    int destinationLength = 0; //prep destination length
+    int destination_savesLengthMax = 0; //prep
+
+    //COUNTERS AND FLAGS THAT ARE REUSED A LOT #NOTMYVARIABLE
+    int i; //legit only counter or flag
+    int j; //legit only counter or flag
+    int k; //legit only counter or flag
+    int m; //legit only counter or flag
+
+    //PATH-CREATING STUFF
+    DWORD compNameSize = MAX_COMPUTERNAME_LENGTH + 1 ; //prep reading comp name
+    char compNameBuffer[MAX_COMPUTERNAME_LENGTH + 1]; //prep reading comp name
+
+    //COMMAND-RELATED STUFF
+    char commandTemp1[10] = "robocopy "; //make sure you count those numbers
+    commandTemp1[9] = '\0';
+    char commandTemp2[47] = " /MIR /copy:DAT /MT:32 /Z /R:5 /W:15 /v /LOG:"; //make sure you count those numbers //removed /eta
+    commandTemp2[46] = '\0'; //make sure this is -1 of above and below is THE SAME
+    int commandTemp2Size = 46; //key for code below
+    int commandSize = 0; //prep, changes based on source
+
+    char *command; //prep for DYNAMIC MEMORY ALLOCATION
+
+    FILE *fcheck; //file pointer for checking log file
+    char roboErrorTwo[47] = "ERROR 2 (0x00000002) Accessing Source Directory"; //within robocopy log file - error means source directory does not exist
+    int roboErrorTwoLength = 47; //required for ez stuff
+    char roboErrorThree[51] = "ERROR 3 (0x00000003) Creating Destination Directory"; //within robocopy log file - error means destination directory does not exist
+    int roboErrorThreeLength = 51; //required for ez stuff
+
+    //***************************DECLARE FUNCTION IS GOING DOWN*************************************************************
+    printf("\n*********************BACKUP PROGRAM HAS BEEN ENGAGED*********************\n");
+
+    //***************************OPEN AND READ DESTINATION LOCATION*************************************************************
+    fdest = fopen("Backup_destinationLocale.txt","r"); //read backup destination
+
+    if( fdest == 0)
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERROR: No destination location file found, giving up.\n");
+        system("pause"); //pause for user input
+        return 1; //1 for sass
+    }
+
+    j = 0; // prep counter
+    k = -1; // prep over char limit flag
+    i = 0; //prep flag for end of line (shouldn't be multiple lines)
+    while( (c = fgetc(fdest)) != EOF ) //runs till hits end of file
+    {
+        if( (c != '\n') && (i == 0) )
+        {
+            if(j < maxLocaleLength)
+            {
+                destination[j] = c; //save the char
+                j = j + 1; //increment char counter
+            }
+            else
+            {
+                //if more than max length then ignoring rest to prevent BUFFER OVERFLOP is this how you do it I DON'T KNOW
+                k = 99999; //save line this happened on
+            }
+        }
+        else
+        {
+            i = 1; //new line found, flag on so we ignore other lines
+        }
+    }
+    if( k >= 0) //report error of cutting off directory line if it was too long
+    {
+        printf("Error - Max char limit for destination directory hit, rest was cut off\nIt's gonna error out later sorry so sorry lass&orlad\n");
+    }
+    destinationLength = j; //record destination length
+    k = 0; //reuse as a counter asap
+    for(i = 0; i < maxLocaleLength; i++)
+    {
+        k = k + isalpha(destination[i]);
+    }
+    if( (destinationLength == 0) || (k == 0) )
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERROR: No destination location in file found, giving up.\n");
+        system("pause"); //pause for user input
+        return 2; //2 for sass
+    }
+
+    fclose(fdest); //closes this file
+
+    //REPORT DESTINATION
+//    printf("Backup Destination:\n");
+//    for(j = 0; j < maxLocaleLength; j++)
+//    {
+//        printf("%c",destination[j]);
+//    }
+//    printf("\n\n");
+    printf("Backup Destination:\n%s\n\n",destination);
+
+
+    //***************************OPEN AND READ SAVES NUMBER*************************************************************
+    fsaves = fopen("Backup_saveLocales.txt","r"); //read backup source locales
+
+    if( fsaves == 0)
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERROR: No backup source location file found, giving up.\n");
+        system("pause"); //pause for user input
+        return 1; //1 for sass
+    }
+
+    saves_numberNOTYET = 1; //prep counter
+    while( (c = fgetc(fsaves)) != EOF) //runs till hits end of file
+    {
+        if(c == '\n')
+        {
+            saves_numberNOTYET = saves_numberNOTYET + 1;
+        }
+    }
+
+    char saves_localesNOTYET[saves_numberNOTYET][maxLocaleLength]; //prep save locale
+    int saves_localesMask[saves_numberNOTYET]; //prep saves mask to get real number and real lines
+    for(i = 0; i < saves_numberNOTYET; i++)
+    {
+        for(j = 0; j < maxLocaleLength; j++)
+        {
+            saves_localesNOTYET[i][j] = '\0'; // fill with nulls
+        }
+        saves_localesMask[i] = 0; //prime this
+    }
+
+    i = 0; //line counter now
+    j = 0; //char counter (max is maxLocaleLength)
+    k = -1; //flag if error happened
+    rewind(fsaves); //go to start of file again
+    while( (c = fgetc(fsaves)) != EOF) //runs till hits end of file
+    {
+        if(c != '\n')
+        {
+            if(j < maxLocaleLength)
+            {
+                saves_localesNOTYET[i][j] = c; //save the char
+                j = j + 1; //increment char counter
+            }
+            else
+            {
+                //if more than max length then ignoring rest to prevent BUFFER OVERFLOP is this how you do it I DON'T KNOW
+                k = i; //save line this happened on
+            }
+        }
+        else
+        {
+            i = i + 1; //increment line counter
+            j = 0; //reset char counter
+
+        }
+    }
+    if( k >= 0) //report error of cutting off directory line if it was too long
+    {
+        printf("ERROR - Max char limit for save directory hit, rest was cut off - last occurrence was line #%d\nIt's gonna error out later sorry so sorry lass&orlad",k);
+    }
+
+    //***************************DETERMINE REAL SAVES NUMBER (AVOID BLANK LINES)*************************************************************
+    for(i = 0; i < saves_numberNOTYET; i++)
+    {
+        for(j = 0; j < maxLocaleLength; j++)
+        {
+            saves_localesMask[i] = saves_localesMask[i] + isalpha(saves_localesNOTYET[i][j]); //increment
+        }
+        //printf("Line %d is %d\n",i,saves_localesMask[i]);
+    }
+
+    saves_number = 1; //prep counter
+    i = 0; //prep counter
+    rewind(fsaves); //go to start of file again
+    while( (c = fgetc(fsaves)) != EOF) //runs till hits end of file
+    {
+        if( (c == '\n') && (saves_localesMask[i] > 0) )
+        {
+            saves_number = saves_number + 1; //increment number of real save locations
+            i = i + 1; //increment line counter
+        }
+    }
+    if( saves_localesMask[saves_numberNOTYET-1] == 0 )
+    {
+        saves_number = saves_number - 1; //de-increment b/c above will not catch the last line since file ends before next line check
+    }
+    if( saves_number == 0)
+    {
+        //NOTE: may not activate HOPE IT DOES ALWAYS
+        printf("\n************************************************************************************\n");
+        printf("ERROR: No backup source locations in file were found, giving up.\n");
+        system("pause"); //pause for user input
+        return 2; //2 for sass
+    }
+    printf("Number of save locations: %d\n",saves_number); //print save number
+
+    //***************************SAVE REAL LINES (IGNORE BLANK ONES)*************************************************************
+    char saves_locales[saves_number][maxLocaleLength]; //prep save locale
+    int saves_localesLength[saves_number]; //prep save locale lengths
+        for(i = 0; i < saves_number; i++)
+    {
+        for(j = 0; j < maxLocaleLength; j++)
+        {
+            saves_locales[i][j] = '\0'; // fill with nulls
+        }
+        saves_localesLength[i] = 0; //prime this
+    }
+
+    i = 0; //line counter for ALL LINES (save_numberNOTYET)
+    m = 0; //line counter for accepted lines (save_number)
+    j = 0; //char counter (max is maxLocaleLength)
+    k = -1; //flag if error happened
+    rewind(fsaves); //go to start of file again
+    while( (c = fgetc(fsaves)) != EOF) //runs till hits end of file
+    {
+        if( (c != '\n') && (saves_localesMask[i] > 0) )
+        {
+            if(j < maxLocaleLength)
+            {
+                saves_locales[m][j] = c; //save the char
+                j = j + 1; //increment char counter
+            }
+            else
+            {
+                //if more than max length then ignoring rest to prevent BUFFER OVERFLOP is this how you do it I DON'T KNOW
+                k = i; //save line this happened on
+            }
+        }
+        else if( (c != '\n') && (saves_localesMask[i] == 0) )
+        {
+            //wait, don't record the line
+        }
+        else //this happens when c == '\n'
+        {
+            i = i + 1; //increment line counter
+            if( saves_localesMask[i-1] != 0 ) //if last line was a real one, record info about it
+            {
+                saves_localesLength[m] = j-1; // record the length of the directory, minus one is for removing the colon
+                //printf("Line %d, recorded line %d, j-1 is %d\n",i-1,m,j-1);
+                j = 0; //reset char counter
+                m = m + 1;
+            }
+        }
+    }
+    if( m != saves_number ) //if we didn't get all recorded lines, catch the last one
+    {
+        saves_localesLength[saves_number-1] = j - 1; //get last recorded l for the last time - should align with
+    }
+    //printf("SAVESLOCALESLENGTH #%d, %d length, j-1 is %d\n",saves_number-1,saves_localesLength[saves_number-1],(j-1));
+    //extra one out here because last isn't hit in the loop if it is the last line
+    if( k >= 0) //report error of cutting off directory line if it was too long
+    {
+        printf("ERROR - Max char limit for save directory hit, rest was cut off - last occurrence was line #%d\nIt's gonna error out later sorry lad&orlass\n",k);
+    }
+
+    //REPORT LOCATIONS TO BE BACKED-UP
+    for(i = 0; i < saves_number; i++)
+    {
+        //for(j = 0; j < maxLocaleLength; j++)
+        //{
+        //    printf("%c",saves_locales[i][j]);
+        //}
+        //printf("\n");
+
+        printf("%s\n",saves_locales[i]);
+    }
+
+    fclose(fsaves);
+
+    //***************************FIND COMPUTER NAME*************************************************************
+    GetComputerName( compNameBuffer, &compNameSize );
+
+    char compName[compNameSize+2]; //prep comp name var, extras are for a \ and a '0
+    for(i = 0; i < compNameSize; i++)
+    {
+        compName[i] = compNameBuffer[i]; //save it to just the right size
+    }
+    compName[compNameSize] = '\\'; // end the string correctly
+    compName[compNameSize+1] = '\0'; // end the string correctly
+
+    printf("\nComputer Name: ");
+    for(i = 0; i < compNameSize; i++)
+    {
+        printf("%c",compName[i]);
+    }
+    printf("\n");
+
+    //***************************CREATE DESTINATION FOLDERS*************************************************************
+    //FIND max length to know what to preallocate for (maximally)
+    int saves_localesLengthMax = 0; //prep max length
+    for(i = 0; i < saves_number; i++)
+    {
+        if(i == 0)
+        {
+            saves_localesLengthMax = saves_localesLength[i]; //record 1st to start
+        }
+        else
+        {
+            if(saves_localesLengthMax < saves_localesLength[i])
+            {
+                saves_localesLengthMax = saves_localesLength[i]; //record biggest
+            }
+        }
+    }
+
+    destination_savesLengthMax = destinationLength+compNameSize+1+saves_localesLengthMax; //this will be used to preallocate
+    //printf("dest saves length max = %d\ndest length = %d\ncompNameSize = %d\nsaves locales = %d\n",destination_savesLengthMax,destinationLength,compNameSize,saves_localesLengthMax);
+    char destination_saves[saves_number][destination_savesLengthMax+1]; //prep destination location, +1 puts \0 at end
+
+    for(i = 0; i < saves_number; i++)
+    {
+        for(j = 0; j < destination_savesLengthMax+1; j++) //+1 puts \0 at end for proper success
+        {
+            destination_saves[i][j] = '\0'; // fill with nulls
+        }
+    }
+
+    //Roll through each save locale and create a destination locale for it
+    for(i = 0; i < saves_number; i++)
+    {
+        k = 0; //prep counter
+
+        //THIS BIT records all but the : to make a file path that includes the original drive letter
+        for(j = 0; j<maxLocaleLength; j++)
+        {
+            //printf("i=%d, j=%d, saves locales=%c, strcmp=%d\n",i,j,saves_locales[i][j],saves_locales[i][j]==':');
+            if( saves_locales[i][j] != ':' )
+            {
+                saves_localesTemp[k] = saves_locales[i][j]; //record
+                k = k + 1; //increment
+            }
+            else
+            {
+                //skip the ":"
+            }
+        }
+
+        //Build the destination location for each originating save location
+        for(j = 0; j<destinationLength; j++)
+        {
+            destination_saves[i][j] = destination[j]; //put in the destination start
+        }
+        for(j = destinationLength; j<(destinationLength+compNameSize+1); j++) //+1 is for extra \ at end of compName
+        {
+            destination_saves[i][j] = compName[j-destinationLength]; //put in the comp name in
+        }
+        for(j = destinationLength+compNameSize+1; j<(destinationLength+compNameSize+1+saves_localesLength[i]); j++) //+1 is for extra \ at end of compName
+        {
+            destination_saves[i][j] = saves_localesTemp[j-(destinationLength+compNameSize+1)]; //put in the save location so it mirrors real one (mostly)
+        }
+    }
+
+
+    //REPORT
+    printf("Destination Saves:\n");
+    for(i = 0; i < saves_number; i++)
+    {
+//        for(j = 0; j < destination_savesLengthMax; j++)
+//        {
+//            printf("%c",destination_saves[i][j]);
+//        }
+//        printf("\n");
+
+        printf("%s\n",destination_saves[i]);
+    }
+
+    //***************************CREATE LOG FILE LOCATION + NAME*************************************************************
+    //Some sick-nasty code I found to get the path of the excutable it uses hardcore stuff
+    //hmjd @ https://stackoverflow.com/questions/9112893/how-to-get-path-to-executable-in-c-running-on-windows
+    DWORD last_error;
+    DWORD result;
+    DWORD path_size = 1024;
+    char* path      = malloc(1024);
+    //this stuff stays here because it is buds with the stuff below and idk whatever go away it works
+
+    for (;;)
+    {
+        memset(path, 0, path_size);
+        result     = GetModuleFileName(0, path, path_size - 1);
+        last_error = GetLastError();
+
+        if (0 == result)
+        {
+            free(path);
+            path = 0;
+            break;
+        }
+        else if (result == path_size - 1)
+        {
+            free(path);
+            /* May need to also check for ERROR_SUCCESS here if XP/2K */
+            if (ERROR_INSUFFICIENT_BUFFER != last_error)
+            {
+                path = 0;
+                break;
+            }
+            path_size = path_size * 2;
+            path = malloc(path_size);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (!path)
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERORR: Path exe finding error failure: %d\nI'm not sure why it failed or what to do about that so sorry lad&orlass\nEXITINGGG SRRY SO SRRY\n", last_error);
+        system("pause"); //pause for user input
+        return 4;
+    }
+    else
+    {
+        //printf("path=%s\n", path);
+    }
+
+    int pathLength = 0; //prep
+    pathLength = strlen(path); //get the path length
+
+    //int exeNameLength = 0; //prep (these will sum to pathLength-1 b/c ditch last /
+    int pathExeLogLength = 0; //prep
+
+//    k = 0; //using as a flag to hold first / found
+//    for(i = pathLength-1; i > 0; i--)
+//    {
+//        if(path[i] == '\\')
+//        {
+//            k = i; // save the location
+//            break; //escape~
+//        }
+//    }
+    //printf("First / happened at %d\n",k);
+
+    //char exeName[pathLength-k-1]; //prep
+    pathExeLogLength = pathLength-4+12+2; //record, 11 for -backup.log and 3 for "'s and a \0 at tne end while -4 removes .exe
+    char pathExeLog[pathExeLogLength]; //prep,cut off the exe
+    char pathExeLogNoParenth[pathExeLogLength-2]; //prep, cut off the exe and dont add "'s
+    pathExeLog[0] = '"';
+    pathExeLog[pathExeLogLength-1] = '\0';
+
+    //Get path and excutable name separately
+    for(i = 1; i <= (pathLength-4); i++)
+    {
+        pathExeLog[i] = path[i-1];
+
+    }
+
+    char pathExeLogTemp[12] = "-backup.log\""; //prep constant insert
+    for(i = (pathLength-3); i < (pathExeLogLength-1);  i++)
+    {
+        pathExeLog[i] = pathExeLogTemp[i-(pathLength-3)];
+    }
+    for(i = 1; i < (pathExeLogLength-2); i++ )
+    {
+        pathExeLogNoParenth[i-1] = pathExeLog[i]; //record
+    }
+    pathExeLogNoParenth[pathExeLogLength-3] = '\0'; //null it at the end
+    //printf("%s\n",pathExeLogNoParenth);
+
+
+    //***************************CREATE COMMAND AND CALL IT*************************************************************
+    printf("\nBEGINNING BACKUP\n");
+    for(i = 0; i < saves_number; i++)
+    {
+        commandSize = 9+commandTemp2Size+saves_localesLength[i]+5+strlen(destination_saves[i])+pathExeLogLength; //get the length expected - 9 is for robocopy, 28 is for options, 5 is for space and 4 "'s
+        command = (char*)malloc(commandSize * sizeof(char)); //dynamically allocate memory for it
+        strcpy(command, commandTemp1);
+        strcat(command, "\"");
+        strcat(command, saves_locales[i]);
+        strcat(command, "\" \"");
+        strcat(command, destination_saves[i]);
+        strcat(command, "\"");
+        strcat(command, commandTemp2);
+        strcat(command, pathExeLog);
+        //printf("for %d, cmd is %s\n",i,command);
+        printf("*********************Backing up: %s*********************\n",saves_locales[i]);
+
+        m = system(command); //run the command
+        //m = 0; //for testing, disables robocopy error catch
+        //printf("###########  m was %d  ###############\n",m);
+
+        //ROBOCOPY ERROR CODES (some aren't errors tho ayy) - from https://blogs.technet.microsoft.com/deploymentguys/2008/06/16/robocopy-exit-codes/
+        //Code 	Meaning
+        //0 	No errors occurred and no files were copied.
+        //1 	One of more files were copied successfully.
+        //2 	Extra files or directories were detected.  Examine the log file for more information.
+        //4 	Mismatched files or directories were detected.  Examine the log file for more information.
+        //8 	Some files or directories could not be copied and the retry limit was exceeded.
+        //16 	Robocopy did not copy any files.  Check the command line parameters and verify that Robocopy has enough rights to write to the destination folder.
+
+        //I HANDLE 8/16 as issues (idk if they all are - 16 is for sure), and support two specific errors in 16
+        if(m == 2)
+        {
+            printf("\nWARNING in Robocopy: Extra files or directories detected - not sure? But I think it is ok.\n");
+        }
+        if(m == 4)
+        {
+            printf("\nWARNING in Robocopy: Mismtached files or directories detected - I think it is deleting files that don't exist in the source anymore, should be ok but noting!\n");
+        }
+        if(m > 8) //general error check is occuring - specific ones are checked for and if not found the general error is issued
+        {
+            fcheck = fopen(pathExeLogNoParenth,"r"); //read backup destination
+            j = 0; //prep counter
+            k = 0; //prep flag
+            while( (c = fgetc(fcheck)) != EOF ) //runs till hits end of file
+            {
+                //printf("%c",c);
+                if(c == roboErrorTwo[j])
+                {
+                    k = 1;
+                    if( c ==  roboErrorTwo[roboErrorTwoLength-1] )
+                    {
+                        printf("\n************************************************************************************\n");
+                        printf("ERROR 2 IN ROBOCOPY (Error code %d): Source location of '%s' was not found to exist. Backup of that folder has failed. Exiting - fix it pls.\n",m,saves_locales[i]);
+                        fclose(fcheck); //wrap it up
+                        system("pause"); //pause for user input
+                        return 3; //return 3 for sass
+                    }
+                }
+                else if(c == roboErrorThree[j])
+                {
+                    k = 1;
+                    if( c ==  roboErrorThree[roboErrorThreeLength-1] )
+                    {
+                        printf("\n************************************************************************************\n");
+                        printf("ERROR 3 IN ROBOCOPY (Error code %d): Destination drive of '%s' was not found to exist. Backup of any files and folders has failed. Exiting - fix it pls.\n",m,destination);
+                        fclose(fcheck); //wrap it up
+                        system("pause"); //pause for user input
+                        return 3; //return 3 for sass
+                    }
+                }
+                else
+                {
+                    k = 0; //Reset K if no consecutive error was caught
+                    j = 0; //reset j too
+                }
+
+                if(k > 0)
+                {
+                    k = 0; //flag handles
+                    j = j + 1; //increment
+                }
+            }
+            printf("\n************************************************************************************\n");
+            printf("ERROR IN ROBOCOPY: Not sure what but the exit code wasn't 0 or 1. YOUR ERROR CODE: %d\n0 = OK, no new files\n1 = OK, new files\n2 = Extra files/directories detected see log (not error)\n",m);
+            printf("4 = Mismatched files/directories detected see log (not error)\n8 = Some files/directories could not be copied and exceeded retry limit (seems solid error zone less srry)\n");
+            printf("16 = nothing copied due to issue, check log, there's a catch for 2 #16 errors already too!\n Exiting - fix it pls, (SEE LOG FILE!).\n");
+            fclose(fcheck); //wrap it up
+            system("pause"); //pause for user input
+            return 3; //return 3 for sass
+        }
+    }
+    printf("\n************************************************************************************\n");
+    printf("BACKUP WAS COMPLETED SUCCESSFULLY AYY");
+    printf("\n************************************************************************************\n");
+
+    printf("\nWaiting 5 seconds so you can read some stuff and then exiting.\n");
+    sleep(5); //keep awake for 5 seconds after finished
+
+    return 0;
+}

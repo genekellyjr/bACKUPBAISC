@@ -1,0 +1,46 @@
+HOW IT WORKS:
+You call it by double clicking it or calling it in the command window (cmd.exe). cmd.exe will leave the info on the screen permantly, double clicking it will close the window automatically after it is done. Step 3 below shows how to automate calling it on a schedule.
+It reads Backup_destinationLocale.txt for the backup destination.
+It reads Backup_saveLocales.txt for the source locations to be saved (backed-up, if you will).
+It reads the computer name and uses that as the main folder directory.
+It uses the save locations to make destination folder names and then calls ROBOCOPY (built into Windows) to mirror the source locations to the backup desination.
+It will notify you if ROBOCOPY has an error, hopefully. Can't guarantee anything step off I did this in like 4 hours.
+ROBOCOPY is a boss. It will only copy what needs to be copied. This program just calls it *just right* in an easy way.
+
+NOTE: If you remove a location from Backup_savesLocales.txt it will stay in your backup destination. You'll have to manually remove it. (Like you had C:\Things and you deleted that, Z:\COMPUTERNAME\C\Things will still exist until you delete it)
+
+1. Set destination in Backup_destinationLocale.txt . I use an external network drive with letter Z, so I put Z:\
+NOTA BENE: Only the first line is read, the rest are ignored. Only one backup directory is supported.
+The backup directory can be longer, like Z:\Backups\ <- you need an ending \ though. OR IT WILL GET WEIRD.
+Weird like BackupsCOMPUTERNAME\ nothing too bad.
+
+2. Set source locations to be saved (backed-up, amirite?) in Backup_saveLocales.txt . Copy folder names from Windows File Explorer and paste them there. Give each one a new line, like so:
+C:\Users\User Name Here\Desktop
+E:\Music
+E:\ButtsNStuff
+And then it will copy those to the destination given above.
+
+3. To automate, hit WINDOWS KEY and type Task Scheduler then press enter.
+Click on Create Task... under Task Scheduler Library under Actions on the right pane.
+Name it BASIC BITCH BACKUP
+Give it a description.
+Go to Triggers tab.
+Hit New... at the bottom.
+Begin the task: On a schedule
+I chose Daily, it will only copy new stuff. You can do anything you want, weekly, hourly, whatev.
+Hit OK.
+Go to Actions tab.
+Hit New... at the bottom.
+Action: Start a program.
+Chose Browse... go to wherever Backup.exe is saved and double click on it. I put it in C:\Commands for easy finding.
+Hit OK.
+Go to Conditions tab.
+Uncheck the Power check marks, unless you're a laptop I guess and you want that.
+NOTA BENE: The task is low CPU usage and doesn't seem to monopolize your bandwidth - should be okay to run while not idle.
+Go to Settings tab.
+Uncheck Stop the task if it runs longer than, it'll get done when it gets done.
+Hit OK at the bottom.
+You did it! It's automated and we are good to go.
+
+
+This program is written in C don't find bad coding practices thx
