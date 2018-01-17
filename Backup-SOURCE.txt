@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <ctype.h>
 #include <windows.h>
 #define sleep(x) Sleep(1000 * x) //fix for everywhere you google is Linux that is sleep while Windows is Sleep so it renames it and makes it count in seconds
@@ -36,6 +37,7 @@ int main()
     int j; //legit only counter or flag
     int k; //legit only counter or flag
     int m; //legit only counter or flag
+    int n; //legit only counter or flag
 
     //PATH-CREATING STUFF
     DWORD compNameSize = MAX_COMPUTERNAME_LENGTH + 1 ; //prep reading comp name
@@ -56,6 +58,10 @@ int main()
     int roboErrorTwoLength = 47; //required for ez stuff
     char roboErrorThree[51] = "ERROR 3 (0x00000003) Creating Destination Directory"; //within robocopy log file - error means destination directory does not exist
     int roboErrorThreeLength = 51; //required for ez stuff
+    FILE* fchecklog; //file pointer for making a log file backup after a "between 1 and all-1 file copy failure" warning
+    char roboWarningLogSaveAddition[19] = "FILECOPYFAILURE.log"; // save this for adding
+    int roboWarningLogSaveAdditionLength = 19; //required for ez stuff
+    int roboWarningLogNumberFinder = 1; //prep this counter
 
     //***************************DECLARE FUNCTION IS GOING DOWN*************************************************************
     printf("\n*********************BACKUP PROGRAM HAS BEEN ENGAGED*********************\n");
@@ -487,6 +493,19 @@ int main()
 
 
     //***************************CREATE COMMAND AND CALL IT*************************************************************
+    roboWarningLogNumberFinder = floor(log10(abs(saves_number))) + 1; //nifty calc for number of number places
+    char roboWarningLogNumber[roboWarningLogNumberFinder]; //prep
+    int roboWarningLogSaveLength = roboWarningLogSaveAdditionLength + roboWarningLogNumberFinder; //only number it so its ez
+    char roboWarningLogSave[roboWarningLogSaveLength]; //prep
+    for(i = 0; i < roboWarningLogNumberFinder; i++)
+    {
+        roboWarningLogNumber[i] = '\0'; //prep with nulls
+    }
+    for(i = 0; i < roboWarningLogSaveLength; i++)
+    {
+        roboWarningLogSave[i] = '\0'; //prep with nulls
+    }
+
     printf("\nBEGINNING BACKUP\n");
     for(i = 0; i < saves_number; i++)
     {
@@ -517,15 +536,69 @@ int main()
         //16 	Robocopy did not copy any files.  Check the command line parameters and verify that Robocopy has enough rights to write to the destination folder.
 
         //I HANDLE 8/16 as issues (idk if they all are - 16 is for sure), and support two specific errors in 16
-        if(m == 2)
+        if(m == 2 || m == 3)
         {
             printf("\nWARNING in Robocopy: Extra files or directories detected - not sure? But I think it is ok.\n");
         }
-        if(m == 4)
+        else if(m == 4 || m == 5 || m == 6 || m == 7)
         {
             printf("\nWARNING in Robocopy: Mismtached files or directories detected - I think it is deleting files that don't exist in the source anymore, should be ok but noting!\n");
         }
-        if(m > 8) //general error check is occuring - specific ones are checked for and if not found the general error is issued
+        else if(m == 8 || m == 9 || m == 10 || m == 11 || m == 12 || m == 13 || m == 14 || m == 15)
+        {
+            if(i == 0 )
+            {
+                n = 1; //math on logs no go good with 0, force digit to be 1
+            }
+            else
+            {
+                n = floor(log10(abs(i))) + 1; //calc number of digits
+            }
+            sprintf(roboWarningLogNumber, "%d", i); //put the number into characters
+            if( n < roboWarningLogNumberFinder ) //if too little digits
+            {
+                for(j = 0; j < (roboWarningLogNumberFinder-n); j++)
+                {
+                    roboWarningLogSave[j] = '0'; //put in a place holder 0
+                }
+                for(j = (roboWarningLogNumberFinder-n); j < (roboWarningLogNumberFinder); j++)
+                {
+                    roboWarningLogSave[j] = roboWarningLogNumber[j-(roboWarningLogNumberFinder-n)]; //put in the number now
+                }
+            }
+            else
+            {
+                sprintf(roboWarningLogSave, "%d", i); //put in the digits as they take up the whole space (success)
+            }
+
+            for(j = roboWarningLogNumberFinder; j < (roboWarningLogSaveAdditionLength+roboWarningLogNumberFinder); j++)
+            {
+                roboWarningLogSave[j] = roboWarningLogSaveAddition[j-roboWarningLogNumberFinder]; //put in the final .log stuff
+            }
+            //NOTABENE: I DID THIS REAL FAST AND I DID NOT FORCE A NULL AT THE END OF roboWarningLogSave so %s MAY GET WEIRD BUT THATS OK I HOPE WHATEVER F
+
+            //printf("\n%s | and n = %d and est max # = %d\n",roboWarningLogSave,n,roboWarningLogNumberFinder);
+            printf("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again my fix this issue (idk bb it did when I made this code to handle this)\n");
+            printf("The source directory was %s\nThe log file can be found in %s (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n\n",saves_locales[i],roboWarningLogSave);
+
+            fcheck = fopen(pathExeLogNoParenth,"r"); //read log
+            fchecklog = fopen(roboWarningLogSave,"w"); //prep to write log to new name
+            if( fchecklog == NULL )
+            {
+                printf("\n************************************************************************************\n");
+                printf("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO %s IN THE Backup.exe directory. Exiting - fix it pls.\n",roboWarningLogSave);
+                fclose(fcheck); //wrap it up
+                system("pause"); //pause for user input
+                return 3; //return 3 for sass
+            }
+            while( ( c = fgetc(fcheck) ) != EOF )
+            {
+                fputc(c, fchecklog); //write the original log to a specially-named log file
+            }
+            fclose(fcheck);
+            fclose(fchecklog); //wrap it up
+        }
+        else if(m == 16) //general error check is occuring - specific ones are checked for and if not found the general error is issued
         {
             fcheck = fopen(pathExeLogNoParenth,"r"); //read backup destination
             j = 0; //prep counter
