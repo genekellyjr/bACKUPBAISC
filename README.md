@@ -2,7 +2,9 @@
 basic backup ok
 
 
-GOAL: Copy files you want to a backup drive reliably and easily with minimal effort, hassle, and care. Do it way more reliably & easier than File History (Backup program built into Windows - called Backup in the Settings Win10 program).
+GOAL: 
+
+Copy files you want to a backup drive reliably and easily with minimal effort, hassle, and care. Do it way more reliably & easier than File History (Backup program built into Windows - called Backup in the Settings Win10 program).
 
 
 USAGE: 
