@@ -1,11 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <ctype.h>
 #include <windows.h>
 #define sleep(x) Sleep(1000 * x) //fix for everywhere you google is Linux that is sleep while Windows is Sleep so it renames it and makes it count in seconds
 
 #define maxLocaleLength 1024 // Maximum length allowed
+#define maxPathUNC 32767 //max UNC length allowed, unused atm
+//UNC not fully supported b/c it goes to ~32,767 and this is 1024 so
+//Max path is apparently more like 255 or 260 depending on where you are at the time, unless its specially enabled in Win10 but we don't talk about that go away
 
 //GOAL: RUN ROBOCOPY TO COPY FILES FROM LIST OF SOURCES TO DESTINATION. READ DESTINATION LOCATION AND SOURCE LIST FROM TEXT FILES.
 int main()
@@ -31,6 +35,8 @@ int main()
     char destination[maxLocaleLength] = {'\0'}; //prep destination location
     int destinationLength = 0; //prep destination length
     int destination_savesLengthMax = 0; //prep
+    char destinationFilePath[maxLocaleLength] = {'\0'}; //prep direct destination location
+    char saveFilePath[maxLocaleLength] = {'\0'}; //prep direct save file location
 
     //COUNTERS AND FLAGS THAT ARE REUSED A LOT #NOTMYVARIABLE
     int i; //legit only counter or flag
@@ -40,6 +46,9 @@ int main()
     int n; //legit only counter or flag
 
     //PATH-CREATING STUFF
+    int pathLength = 0; //prep (NOT related to pathBase)
+    char pathHolder[maxLocaleLength] = {'0'}; //prep n clear
+    char pathBase[maxLocaleLength] = {'\0'}; //prep n clear
     DWORD compNameSize = MAX_COMPUTERNAME_LENGTH + 1 ; //prep reading comp name
     char compNameBuffer[MAX_COMPUTERNAME_LENGTH + 1]; //prep reading comp name
 
@@ -66,8 +75,103 @@ int main()
     //***************************DECLARE FUNCTION IS GOING DOWN*************************************************************
     printf("\n*********************BACKUP PROGRAM HAS BEEN ENGAGED*********************\n");
 
+
+    //***************************FIND RUNNING PATH*************************************************************
+    //Some sick-nasty code I found to get the path of the excutable it uses hardcore stuff
+    //hmjd @ https://stackoverflow.com/questions/9112893/how-to-get-path-to-executable-in-c-running-on-windows
+    DWORD last_error;
+    DWORD result;
+    DWORD path_size = 1024;
+    char* path = malloc(1024);
+    //this stuff stays here because it is buds with the stuff below and idk whatever go away it works
+
+    for (;;)
+    {
+        memset(path, 0, path_size);
+        result = GetModuleFileName(0, path, path_size - 1);
+        last_error = GetLastError();
+
+        if (0 == result)
+        {
+            free(path);
+            path = 0;
+            break;
+        }
+        else if (result == path_size - 1)
+        {
+            free(path);
+            /* May need to also check for ERROR_SUCCESS here if XP/2K */
+            if (ERROR_INSUFFICIENT_BUFFER != last_error)
+            {
+                path = 0;
+                break;
+            }
+            path_size = path_size * 2;
+            path = malloc(path_size);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (!path)
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERORR: Path exe finding error failure: %d\nI'm not sure why it failed or what to do about that so sorry lad&orlass\nEXITINGGG SRRY SO SRRY\n", last_error);
+        system("pause"); //pause for user input
+        return 4;
+    }
+    else
+    {
+        //printf("path=%s\n", path);
+
+    }
+    strcpy(pathHolder,path); //copy to non-dynamic memory
+
+    pathLength = strlen(pathHolder); //get the path length
+    //printf("STR LEN = %d\nPRINTING PATH:\n",pathLength);
+    k = 0; //prep place finder
+    for( i = 0; i < pathLength; i++)
+    {
+        //printf("%c",pathHolder[i]);
+        if( pathHolder[i] == '\\')
+        {
+            k = i; //record last \ with this
+        }
+    }
+    strncpy(pathBase,pathHolder,k+1); //copy path base to string
+    //printf("PATH BASE: %s\n",pathBase);
+
+    //CREATE DIRECT DESTINATION FILE LOCALE AND SAVE FILE LOCALE FOR GUARANTEED READING
+    //printf("STRING MAKING\n");
+    if( (pathLength+29) > maxLocaleLength ) //make sure we don't go over the limit
+    {
+        printf("Error - Max char limit for file location where destination locale is held, rest was cut off - only using relative path %s\nIt's gonna error out later sorry so sorry lass&orlad\n","Backup_destinationLocale.txt");
+        strcat(destinationFilePath, "Backup_destinationLocale.txt"); //create destination file path
+    }
+    else
+    {
+        strcat(destinationFilePath, pathBase);
+        strcat(destinationFilePath, "Backup_destinationLocale.txt"); //create destination file path
+    }
+
+    if( (pathLength+22) > maxLocaleLength ) //make sure we don't go over the limit
+    {
+        printf("Error - Max char limit for file location where save locales are held, rest was cut off - only using relative path %s\nIt's gonna error out later sorry so sorry lass&orlad\n","Backup_saveLocales.txt");
+        strcat(destinationFilePath, "Backup_saveLocales.txt"); //create destination file path
+    }
+    else
+    {
+        strcat(saveFilePath, pathBase);
+        strcat(saveFilePath, "Backup_saveLocales.txt"); //create save file path
+    }
+
+
+    //printf("dest %s\nsave %s\n",destinationFilePath,saveFilePath);
+
     //***************************OPEN AND READ DESTINATION LOCATION*************************************************************
-    fdest = fopen("Backup_destinationLocale.txt","r"); //read backup destination
+    fdest = fopen(destinationFilePath,"r"); //read backup destination
 
     if( fdest == 0)
     {
@@ -129,9 +233,115 @@ int main()
 //    printf("\n\n");
     printf("Backup Destination:\n%s\n\n",destination);
 
+    //***************************DETERMINE IF NETWORK DRIVE*************************************************************
+    //DISABLED UNTIL OBVIOUS IT IS NEEDED - IT DOES MAKE A UNC PATH TO THE REQUESTED NETWORK DRIVE THO LET ME TELL YOU ITS REAL
+    /*
+    //READING FROM A COMMAND SOURCED FROM https://stackoverflow.com/questions/646241/c-run-a-system-command-and-get-output
+    //THX2BILL it works on Windows too
+    FILE *fcmd; //init file pointer for the command stream used to check for full networked drive paths b/c can't talk to them normally
+    char cmdReturn[maxLocaleLength] = {'\0'}; //prep n clear
+    char *ret;
+    char retRecord[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationUNC[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationNetworkFixEngage[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationNetworkFixStart[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationNetworkFixEnd[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationTwoChar[3] = {'\0'}; //prep n clear (extra is for NULL at end so its a real string)
+    for( i = 0; i < 2; i++)
+    {
+        destinationTwoChar[i] = destination[i]; //write in the first two chars, NO I DON'T KNOW A BETTER WAY SHOVE OFF
+    }
+
+    // Open the command stream "net use" which gives networked drives full paths (e.g. \\servername\)
+    fcmd = popen("net use", "r"); //run cmd.exe net use
+    if (fcmd == NULL) //make sure something happened
+    {
+        printf("\n************************************************************************************\n");
+        printf("ERROR: Failed to run cmd.exe net use to figure out if drive given is a network drive, giving up.\n");
+        system("pause"); //pause for user input
+        return 1; //1 for sass
+    }
+    // Read the output a line at a time, dunno how to do it any way else, tried by character #failure
+    while (fgets(cmdReturn, sizeof(cmdReturn)-1, fcmd) != NULL)
+    {
+        //printf("%s", cmdReturn); //rep
+        ret = strstr(cmdReturn, destinationTwoChar);
+        if(ret != NULL)
+        {
+            //printf("RET = %s\n",ret);
+            i = 0; //counter, prevents over char array
+            k = -1; //flag to signify over char array occured
+            while( ret[i] != NULL) //while not NULL idk I made it up it works go away is it ok sure it is
+            {
+                if(i < maxLocaleLength)
+                {
+                    retRecord[i] = ret[i]; //records return
+                }
+                else
+                {
+                    k = i; //flag over char array length
+                }
+                i++; //increment
+            }
+            if( k >= 0) //notify
+            {
+                printf("Error - Max char limit for destination directory hit, rest was cut off\nIt's gonna error out later sorry so sorry lass&orlad\n");
+            }
+        }
+    }
+    pclose(fcmd); // Close the command stream, got it
+
+    //printf("RET Recorded = %s\n",retRecord);
+
+    k = 0; // flag for finding \\ occurances
+    j = 0; //mid-cycle counter
+    for( i = 0; i < maxLocaleLength; i++)
+    {
+        if( (retRecord[i] == '\\') & (k == 0 | k == 1) )
+        {
+            k++;
+        }
+        if( k == 2 )
+        {
+            if( j > 0 & (retRecord[i] == '\0' | retRecord[i] == ' ') )
+            {
+                break; //time to ditch it
+            }
+            if( j == 0) //first run prep
+            {
+                destinationUNC[0] = '\\'; //put in the slashes
+                destinationUNC[1] = '\\';
+                j = 2; //counter to start at
+            }
+            else
+            {
+                destinationUNC[j] = retRecord[i];
+                j++; //increment
+            }
+        }
+    }
+
+    // printf("destinationUNC = %s\n",destinationUNC);
+
+    //NOTE: Add string length checks
+    //this could go bad most def yolo
+    strcat(destinationNetworkFixEngage, "net use "); //add to the string
+    strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
+    strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
+
+    strcat(destinationNetworkFixStart, "pushd "); //add to the string
+    strcat(destinationNetworkFixStart, destinationUNC); //add to the string
+
+    strcat(destinationNetworkFixEnd, "popd "); //add to the string
+    strcat(destinationNetworkFixEnd, destinationUNC); //add to the string
+
+    //system(destinationNetworkFixEngage); //force some mappin action HARDCORE LOOK OUT
+    //system(destinationNetworkFixStart); //hopefully engage the drive
+    */
+
 
     //***************************OPEN AND READ SAVES NUMBER*************************************************************
-    fsaves = fopen("Backup_saveLocales.txt","r"); //read backup source locales
+    fsaves = fopen(saveFilePath,"r"); //read backup source locales
 
     if( fsaves == 0)
     {
@@ -398,59 +608,6 @@ int main()
     }
 
     //***************************CREATE LOG FILE LOCATION + NAME*************************************************************
-    //Some sick-nasty code I found to get the path of the excutable it uses hardcore stuff
-    //hmjd @ https://stackoverflow.com/questions/9112893/how-to-get-path-to-executable-in-c-running-on-windows
-    DWORD last_error;
-    DWORD result;
-    DWORD path_size = 1024;
-    char* path      = malloc(1024);
-    //this stuff stays here because it is buds with the stuff below and idk whatever go away it works
-
-    for (;;)
-    {
-        memset(path, 0, path_size);
-        result     = GetModuleFileName(0, path, path_size - 1);
-        last_error = GetLastError();
-
-        if (0 == result)
-        {
-            free(path);
-            path = 0;
-            break;
-        }
-        else if (result == path_size - 1)
-        {
-            free(path);
-            /* May need to also check for ERROR_SUCCESS here if XP/2K */
-            if (ERROR_INSUFFICIENT_BUFFER != last_error)
-            {
-                path = 0;
-                break;
-            }
-            path_size = path_size * 2;
-            path = malloc(path_size);
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    if (!path)
-    {
-        printf("\n************************************************************************************\n");
-        printf("ERORR: Path exe finding error failure: %d\nI'm not sure why it failed or what to do about that so sorry lad&orlass\nEXITINGGG SRRY SO SRRY\n", last_error);
-        system("pause"); //pause for user input
-        return 4;
-    }
-    else
-    {
-        //printf("path=%s\n", path);
-    }
-
-    int pathLength = 0; //prep
-    pathLength = strlen(path); //get the path length
-
     //int exeNameLength = 0; //prep (these will sum to pathLength-1 b/c ditch last /
     int pathExeLogLength = 0; //prep
 
@@ -475,7 +632,7 @@ int main()
     //Get path and excutable name separately
     for(i = 1; i <= (pathLength-4); i++)
     {
-        pathExeLog[i] = path[i-1];
+        pathExeLog[i] = pathHolder[i-1];
 
     }
 
@@ -654,6 +811,8 @@ int main()
     printf("\n************************************************************************************\n");
     printf("BACKUP WAS COMPLETED SUCCESSFULLY AYY");
     printf("\n************************************************************************************\n");
+
+    //system(destinationNetworkFixEnd); //disengage it
 
     printf("\nWaiting 5 seconds so you can read some stuff and then exiting.\n");
     sleep(5); //keep awake for 5 seconds after finished
