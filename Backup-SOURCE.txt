@@ -235,15 +235,17 @@ int main()
 
     //***************************DETERMINE IF NETWORK DRIVE*************************************************************
     //DISABLED UNTIL OBVIOUS IT IS NEEDED - IT DOES MAKE A UNC PATH TO THE REQUESTED NETWORK DRIVE THO LET ME TELL YOU ITS REAL
-    /*
+
     //READING FROM A COMMAND SOURCED FROM https://stackoverflow.com/questions/646241/c-run-a-system-command-and-get-output
     //THX2BILL it works on Windows too
     FILE *fcmd; //init file pointer for the command stream used to check for full networked drive paths b/c can't talk to them normally
     char cmdReturn[maxLocaleLength] = {'\0'}; //prep n clear
-    char *ret;
+    int FLG_destinationNetwork = 0; //prep flag if a networked destination is detected
+    int FLG_destinationNetworkUnavail = 0; //prep flag if a networked destination is currently unavailable
+    char *ret; //pointer for strstr
     char retRecord[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationUNC[maxLocaleLength] = {'\0'}; //prep n clear
-    char destinationNetworkFixEngage[maxLocaleLength] = {'\0'}; //prep n clear
+    //char destinationNetworkFixEngage[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationNetworkFixStart[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationNetworkFixEnd[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationTwoChar[3] = {'\0'}; //prep n clear (extra is for NULL at end so its a real string)
@@ -251,6 +253,7 @@ int main()
     {
         destinationTwoChar[i] = destination[i]; //write in the first two chars, NO I DON'T KNOW A BETTER WAY SHOVE OFF
     }
+
 
     // Open the command stream "net use" which gives networked drives full paths (e.g. \\servername\)
     fcmd = popen("net use", "r"); //run cmd.exe net use
@@ -265,13 +268,16 @@ int main()
     while (fgets(cmdReturn, sizeof(cmdReturn)-1, fcmd) != NULL)
     {
         //printf("%s", cmdReturn); //rep
-        ret = strstr(cmdReturn, destinationTwoChar);
+        ret = strstr(cmdReturn, destinationTwoChar); //strstr returns NULL if the thing we're looking for (drive letter:)  isn't there
         if(ret != NULL)
         {
             //printf("RET = %s\n",ret);
             i = 0; //counter, prevents over char array
             k = -1; //flag to signify over char array occured
-            while( ret[i] != NULL) //while not NULL idk I made it up it works go away is it ok sure it is
+            FLG_destinationNetwork = 1; //turn on flag that it is a networked destination locale
+            strcpy(retRecord,cmdReturn); //copy in the bit that we found to keep ~precious~
+
+            /*while( ret[i] != NULL) //while not NULL idk I made it up it works go away is it ok sure it is
             {
                 if(i < maxLocaleLength)
                 {
@@ -286,58 +292,76 @@ int main()
             if( k >= 0) //notify
             {
                 printf("Error - Max char limit for destination directory hit, rest was cut off\nIt's gonna error out later sorry so sorry lass&orlad\n");
-            }
+            }*/
         }
     }
     pclose(fcmd); // Close the command stream, got it
 
     //printf("RET Recorded = %s\n",retRecord);
 
-    k = 0; // flag for finding \\ occurances
-    j = 0; //mid-cycle counter
-    for( i = 0; i < maxLocaleLength; i++)
+    if( FLG_destinationNetwork == 1)
     {
-        if( (retRecord[i] == '\\') & (k == 0 | k == 1) )
+        //printf("\nTEST: NETWORK DESTINATION DETECTED\n");
+        k = 0; // flag for finding \\ occurances
+        j = 0; //mid-cycle counter
+        for( i = 0; i < maxLocaleLength; i++)
         {
-            k++;
+            if( (retRecord[i] == '\\') & ((k == 0) | (k == 1)) )
+            {
+                k++;
+            }
+            if( k == 2 )
+            {
+                if( (j > 0) & ((retRecord[i] == '\0') | (retRecord[i] == ' ')) )
+                {
+                    break; //time to ditch it
+                }
+                if( j == 0) //first run prep
+                {
+                    destinationUNC[0] = '\\'; //put in the slashes
+                    destinationUNC[1] = '\\';
+                    j = 2; //counter to start at
+                }
+                else
+                {
+                    destinationUNC[j] = retRecord[i];
+                    j++; //increment
+                }
+            }
         }
-        if( k == 2 )
+        //printf("\nTEST: CHECKING: %s\n",retRecord);
+        //Check if network is unavailable
+        if( (strstr(retRecord,"Unavailable") != NULL) | (strstr(retRecord,"Disconnected") != NULL) )
         {
-            if( j > 0 & (retRecord[i] == '\0' | retRecord[i] == ' ') )
-            {
-                break; //time to ditch it
-            }
-            if( j == 0) //first run prep
-            {
-                destinationUNC[0] = '\\'; //put in the slashes
-                destinationUNC[1] = '\\';
-                j = 2; //counter to start at
-            }
-            else
-            {
-                destinationUNC[j] = retRecord[i];
-                j++; //increment
-            }
+            //printf("\nTEST: UNAVAILABLE FOUND\n");
+            FLG_destinationNetworkUnavail = 1; //turn on flag that it's unavailable ATM and take steps to make it available
+        }
+        //else
+        //{
+           // printf("\nTEST: NETWORK IS AVAILABLE\n");
+        //}
+
+        // printf("destinationUNC = %s\n",destinationUNC);
+
+        if( FLG_destinationNetworkUnavail == 1 ) //try to get it going if it's not going
+        {
+            printf("NOTA BENE: Network drive is currently disconnected, attempting an *untested* reconnection method. An error catch will trigger later if reconnection attempt fails.\n\n");
+            //NOTE: Add string length checks
+            //this could go bad most def yolo
+            //strcat(destinationNetworkFixEngage, "net use "); //add to the string
+            //strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
+            //strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
+
+            strcat(destinationNetworkFixStart, "pushd "); //add to the string
+            strcat(destinationNetworkFixStart, destinationUNC); //add to the string
+
+            strcat(destinationNetworkFixEnd, "popd "); //add to the string
+            strcat(destinationNetworkFixEnd, destinationUNC); //add to the string
+
+            //system(destinationNetworkFixEngage); //force some mappin action HARDCORE LOOK OUT
+            system(destinationNetworkFixStart); //hopefully engage the drive
         }
     }
-
-    // printf("destinationUNC = %s\n",destinationUNC);
-
-    //NOTE: Add string length checks
-    //this could go bad most def yolo
-    strcat(destinationNetworkFixEngage, "net use "); //add to the string
-    strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
-    strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
-
-    strcat(destinationNetworkFixStart, "pushd "); //add to the string
-    strcat(destinationNetworkFixStart, destinationUNC); //add to the string
-
-    strcat(destinationNetworkFixEnd, "popd "); //add to the string
-    strcat(destinationNetworkFixEnd, destinationUNC); //add to the string
-
-    //system(destinationNetworkFixEngage); //force some mappin action HARDCORE LOOK OUT
-    //system(destinationNetworkFixStart); //hopefully engage the drive
-    */
 
 
     //***************************OPEN AND READ SAVES NUMBER*************************************************************
@@ -812,7 +836,10 @@ int main()
     printf("BACKUP WAS COMPLETED SUCCESSFULLY AYY");
     printf("\n************************************************************************************\n");
 
-    //system(destinationNetworkFixEnd); //disengage it
+    if( FLG_destinationNetworkUnavail == 1) //if engaged network, disengage (I think it's OK if I don't but whatev)
+    {
+        system(destinationNetworkFixEnd); //disengage it
+    }
 
     printf("\nWaiting 5 seconds so you can read some stuff and then exiting.\n");
     sleep(5); //keep awake for 5 seconds after finished
