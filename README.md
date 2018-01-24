@@ -18,7 +18,9 @@ USAGE:
 3. Once those files are set, launch Backup.exe. It will keep you appraised of what is going on.
 
 
-4. See BACKUP HOW TO USE.txt step 4 for how to set Backup.exe on a regular schedule using Task Scheduler.
+4. See BACKUP HOW TO USE.txt step 3 for how to set Backup.exe on a regular schedule using Task Scheduler.
+
+5. Don't run Backup.exe as Admin, isn't needed and it will mess with networked drives. Basically if Z:\ is a network share that is really \\servercomp\share\ only the user mode has \\servercomp\share\ mapped to Z:\, the admin mode doesn't have Z:\ mapped to \\servercomp\share\. Top troll from Windows. I could get around it if it's a problem by replacing Z:\ with \\servercomp\share\ in the code, but it's not a problem yet, and this is one basic code.
 
 
 HOW IT WORKS:
