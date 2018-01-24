@@ -1,11 +1,11 @@
 HOW IT WORKS:
-You call it by double clicking it or calling it in the command window (cmd.exe). cmd.exe will leave the info on the screen permantly, double clicking it will close the window automatically after it is done. Step 3 below shows how to automate calling it on a schedule.
+You call it by double clicking it or calling it in the command window (cmd.exe). cmd.exe will leave the info on the screen permantly, double clicking it will close the window automatically after it is done. Step 3 below shows how to automate calling it on a schedule. NOTE: Don't run as Admin, not needed and it might mess with networked drives (apparently if Z:\ is a networked drive it is only mounted as Z:\ to the User not the Admin, even if your account is the admin account ok Windows srsly lol)
 It reads Backup_destinationLocale.txt for the backup destination.
 It reads Backup_saveLocales.txt for the source locations to be saved (backed-up, if you will).
 It reads the computer name and uses that as the main folder directory.
 It uses the save locations to make destination folder names and then calls ROBOCOPY (built into Windows) to mirror the source locations to the backup desination.
 It will notify you if ROBOCOPY has an error, hopefully. Can't guarantee anything step off I did this in like 4 hours.
-ROBOCOPY is a boss. It will only copy what needs to be copied. This program just calls it *just right* in an easy way.
+ROBOCOPY is a boss. It will only copy what is to be copied, and won't recopy if its already there. This program just calls it *just right* in an easy way.
 
 NOTE: If you remove a location from Backup_savesLocales.txt it will stay in your backup destination. You'll have to manually remove it. (Like you had C:\Things and you deleted that, Z:\COMPUTERNAME\C\Things will still exist until you delete it)
 
@@ -22,7 +22,7 @@ And then it will copy those to the destination given above.
 
 3. To automate, hit WINDOWS KEY and type Task Scheduler then press enter.
 Click on Create Task... under Task Scheduler Library under Actions on the right pane.
-Name it BASIC BITCH BACKUP
+Name it BASIC BITCH BACKUP - don't enable Run as Admin, it will cause issues with networked drives (I think haven't tried)
 Give it a description.
 Go to Triggers tab.
 Hit New... at the bottom.
