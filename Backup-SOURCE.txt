@@ -245,9 +245,9 @@ int main()
     char *ret; //pointer for strstr
     char retRecord[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationUNC[maxLocaleLength] = {'\0'}; //prep n clear
-    //char destinationNetworkFixEngage[maxLocaleLength] = {'\0'}; //prep n clear
-    char destinationNetworkFixStart[maxLocaleLength] = {'\0'}; //prep n clear
-    char destinationNetworkFixEnd[maxLocaleLength] = {'\0'}; //prep n clear
+    char destinationNetworkFixEngage[maxLocaleLength] = {'\0'}; //prep n clear
+    //char destinationNetworkFixStart[maxLocaleLength] = {'\0'}; //prep n clear
+    //char destinationNetworkFixEnd[maxLocaleLength] = {'\0'}; //prep n clear
     char destinationTwoChar[3] = {'\0'}; //prep n clear (extra is for NULL at end so its a real string)
     for( i = 0; i < 2; i++)
     {
@@ -345,21 +345,23 @@ int main()
 
         if( FLG_destinationNetworkUnavail == 1 ) //try to get it going if it's not going
         {
-            printf("NOTA BENE: Network drive is currently disconnected, attempting an *untested* reconnection method. An error catch will trigger later if reconnection attempt fails.\n\n");
+            printf("*********NOTA BENE: Network drive is currently disconnected, attempting to force a reconnection. An error catch will trigger later if reconnection attempt fails.*********\n");
             //NOTE: Add string length checks
             //this could go bad most def yolo
-            //strcat(destinationNetworkFixEngage, "net use "); //add to the string
-            //strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
-            //strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
+            strcat(destinationNetworkFixEngage, "net use "); //add to the string
+            strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
+            strcat(destinationNetworkFixEngage, " "); //add to the string
+            strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
 
-            strcat(destinationNetworkFixStart, "pushd "); //add to the string
-            strcat(destinationNetworkFixStart, destinationUNC); //add to the string
+            //strcat(destinationNetworkFixStart, "pushd "); //add to the string
+            //strcat(destinationNetworkFixStart, destinationUNC); //add to the string
 
-            strcat(destinationNetworkFixEnd, "popd "); //add to the string
-            strcat(destinationNetworkFixEnd, destinationUNC); //add to the string
+            //strcat(destinationNetworkFixEnd, "popd "); //add to the string
+            //strcat(destinationNetworkFixEnd, destinationUNC); //add to the string
 
-            //system(destinationNetworkFixEngage); //force some mappin action HARDCORE LOOK OUT
-            system(destinationNetworkFixStart); //hopefully engage the drive
+            system(destinationNetworkFixEngage); //force some mappin action HARDCORE LOOK OUT
+            printf("RAN COMMAND TO FORCE CONNECTION: %s\n\n",destinationNetworkFixEngage); //report command used
+            //system(destinationNetworkFixStart); //hopefully engage the drive
         }
     }
 
@@ -835,11 +837,6 @@ int main()
     printf("\n************************************************************************************\n");
     printf("BACKUP WAS COMPLETED SUCCESSFULLY AYY");
     printf("\n************************************************************************************\n");
-
-    if( FLG_destinationNetworkUnavail == 1) //if engaged network, disengage (I think it's OK if I don't but whatev)
-    {
-        system(destinationNetworkFixEnd); //disengage it
-    }
 
     printf("\nWaiting 5 seconds so you can read some stuff and then exiting.\n");
     sleep(5); //keep awake for 5 seconds after finished
