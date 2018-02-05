@@ -9,7 +9,7 @@ Copy files you want to a backup drive reliably and easily with minimal effort, h
 
 USAGE: 
 
-1. Download release files
+1. Download release files, put all in same folder to run from (maybe C:\BackupProgram why not)
 
 
 2. Read BACKUP HOW TO USE.txt to know how to prep Backup_destinationLocale.txt and Backup_saveLocales.txt - put the path you want to send data to (destination) and the paths you want to save (saves) in the text files. There's no options or configs.
