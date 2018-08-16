@@ -3,7 +3,10 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#define _WIN32_WINNT 0x0500 //must be before windows.h for mystical reasons such as widnows.h overwrites it with not right thing - for minimizing console window
 #include <windows.h>
+#include <shellapi.h> // make some system tray stuff go on
+#define WM_MYMESSAGE (WM_USER + 1) //for that tray icon
 #define sleep(x) Sleep(1000 * x) //fix for everywhere you google is Linux that is sleep while Windows is Sleep so it renames it and makes it count in seconds
 
 #define maxLocaleLength 1024 // Maximum length allowed
@@ -14,6 +17,27 @@
 //GOAL: RUN ROBOCOPY TO COPY FILES FROM LIST OF SOURCES TO DESTINATION. READ DESTINATION LOCATION AND SOURCE LIST FROM TEXT FILES.
 int main()
 {
+    //Suppress command window so it doesn't steal screen real-estate and bump out of movies etc.
+    HWND hWnd = GetConsoleWindow(); // from https://stackoverflow.com/questions/11812095/hide-the-console-window-of-a-c-program via Anthropos
+    //ShowWindow( hWnd, SW_MINIMIZE );  //won't hide the window without SW_MINIMIZE https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx check this
+    ShowWindow( hWnd, SW_HIDE ); //hides the window so it leaves taskbar etc
+    //ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error (here for debugging)
+
+    //System Tray Icon support - here it is
+    NOTIFYICONDATA nid; //thing that has info on window and system tray stuff in it
+    nid.cbSize = sizeof(NOTIFYICONDATA); //prep
+    nid.hWnd = hWnd; //links the console window
+    nid.uID = 1001; //it's a number
+    nid.uCallbackMessage = WM_MYMESSAGE; //whoknows should be related to click capture but doesn't so
+    nid.hIcon = LoadIcon(NULL, IDI_APPLICATION); //icon idk
+    strcpy(nid.szTip, "Basic Bitch Backup is running in the background"); //tooltip for the icon
+    nid.szTip[47] = '\0'; //null at the end of it
+    nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP; //who knows
+    size_t nidszTipLength = sizeof(nid.szTip) / sizeof(nid.szTip[0]); //gets the size of nid.szTip (tooltip length)
+
+    Shell_NotifyIcon(NIM_ADD, &nid); //shows the icon
+    //system("pause");
+
     //Introduce program
     printf("  ____           _____ _____ _____   ____ _____ _______ _____ _    _   ____          _____ _  ___    _ _____  \n");
     printf(" |  _ \\   /\\    / ____|_   _/ ____| |  _ \\_   _|__   __/ ____| |  | | |  _ \\   /\\   / ____| |/ / |  | |  __ \\ \n");
@@ -55,22 +79,33 @@ int main()
     //COMMAND-RELATED STUFF
     char commandTemp1[10] = "robocopy "; //make sure you count those numbers
     commandTemp1[9] = '\0';
-    char commandTemp2[47] = " /MIR /copy:DAT /MT:32 /Z /R:5 /W:15 /v /LOG:"; //make sure you count those numbers //removed /eta
-    commandTemp2[46] = '\0'; //make sure this is -1 of above and below is THE SAME
-    int commandTemp2Size = 46; //key for code below
+    char commandTemp2[46] = " /MIR /copy:DAT /MT:32 /Z /R:2 /W:03 /v /LOG:"; //make sure you count those numbers //removed /eta
+    commandTemp2[45] = '\0'; //make sure this is -1 of above and below is THE SAME
+    int commandTemp2Size = 45; //key for code below
     int commandSize = 0; //prep, changes based on source
 
     char *command; //prep for DYNAMIC MEMORY ALLOCATION
 
     FILE *fcheck; //file pointer for checking log file
-    char roboErrorTwo[47] = "ERROR 2 (0x00000002) Accessing Source Directory"; //within robocopy log file - error means source directory does not exist
+    char roboErrorTwo[48] = "ERROR 2 (0x00000002) Accessing Source Directory"; //within robocopy log file - error means source directory does not exist
+    roboErrorTwo[47] = '\0';
     int roboErrorTwoLength = 47; //required for ez stuff
-    char roboErrorThree[51] = "ERROR 3 (0x00000003) Creating Destination Directory"; //within robocopy log file - error means destination directory does not exist
+    char roboErrorThree[52] = "ERROR 3 (0x00000003) Creating Destination Directory"; //within robocopy log file - error means destination directory does not exist
+    roboErrorThree[51] = '\0';
     int roboErrorThreeLength = 51; //required for ez stuff
     FILE* fchecklog; //file pointer for making a log file backup after a "between 1 and all-1 file copy failure" warning
-    char roboWarningLogSaveAddition[19] = "FILECOPYFAILURE.log"; // save this for adding
+    char roboWarningLogSaveAddition[20] = "FILECOPYFAILURE.log"; // save this for adding
+    roboWarningLogSaveAddition[19] = '\0'; //null it and the end
     int roboWarningLogSaveAdditionLength = 19; //required for ez stuff
     int roboWarningLogNumberFinder = 1; //prep this counter
+
+    char sysTrayTemp1[maxLocaleLength] = {'\0'}; //prep system tray temp
+    char sysTrayTemp2[maxLocaleLength] = {'\0'}; //prep system tray temp
+
+    if(nidszTipLength > maxLocaleLength)
+    {
+        nidszTipLength = maxLocaleLength; //prevent buffer overflow from changing Windows parameters (but really I doubt they'd ever change, it's 64 right now)
+    }
 
     //***************************DECLARE FUNCTION IS GOING DOWN*************************************************************
     printf("\n*********************BACKUP PROGRAM HAS BEEN ENGAGED*********************\n");
@@ -85,7 +120,7 @@ int main()
     char* path = malloc(1024);
     //this stuff stays here because it is buds with the stuff below and idk whatever go away it works
 
-    for (;;)
+    for (;;) //what even
     {
         memset(path, 0, path_size);
         result = GetModuleFileName(0, path, path_size - 1);
@@ -117,17 +152,18 @@ int main()
 
     if (!path)
     {
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERORR: Path exe finding error failure: %d\nI'm not sure why it failed or what to do about that so sorry lad&orlass\nEXITINGGG SRRY SO SRRY\n", last_error);
         system("pause"); //pause for user input
         return 4;
     }
-    else
+    /*else
     {
-        //printf("path=%s\n", path);
+        printf("path=%s\n", path);
 
-    }
-    strcpy(pathHolder,path); //copy to non-dynamic memory
+    } */
+    strncpy(pathHolder,path,maxLocaleLength); //copy to non-dynamic memory
 
     pathLength = strlen(pathHolder); //get the path length
     //printf("STR LEN = %d\nPRINTING PATH:\n",pathLength);
@@ -145,26 +181,26 @@ int main()
 
     //CREATE DIRECT DESTINATION FILE LOCALE AND SAVE FILE LOCALE FOR GUARANTEED READING
     //printf("STRING MAKING\n");
-    if( (pathLength+29) > maxLocaleLength ) //make sure we don't go over the limit
+    if( (pathLength+29) > maxLocaleLength ) //make sure we don't go over the limit (29 is length of Backup_destinationLocale.txt and a '\0' null char)
     {
         printf("Error - Max char limit for file location where destination locale is held, rest was cut off - only using relative path %s\nIt's gonna error out later sorry so sorry lass&orlad\n","Backup_destinationLocale.txt");
-        strcat(destinationFilePath, "Backup_destinationLocale.txt"); //create destination file path
+        strncat(destinationFilePath, "Backup_destinationLocale.txt", maxLocaleLength-1); //create destination file path
     }
     else
     {
-        strcat(destinationFilePath, pathBase);
-        strcat(destinationFilePath, "Backup_destinationLocale.txt"); //create destination file path
+        strncat(destinationFilePath, pathBase, maxLocaleLength-1);
+        strncat(destinationFilePath, "Backup_destinationLocale.txt",maxLocaleLength-1-strlen(pathBase)); //create destination file path
     }
 
-    if( (pathLength+22) > maxLocaleLength ) //make sure we don't go over the limit
+    if( (pathLength+22) > maxLocaleLength ) //make sure we don't go over the limit (29 is length of Backup_saveLocales.txt and a '\0' null char)
     {
         printf("Error - Max char limit for file location where save locales are held, rest was cut off - only using relative path %s\nIt's gonna error out later sorry so sorry lass&orlad\n","Backup_saveLocales.txt");
-        strcat(destinationFilePath, "Backup_saveLocales.txt"); //create destination file path
+        strncat(destinationFilePath, "Backup_saveLocales.txt", maxLocaleLength-1); //create destination file path
     }
     else
     {
-        strcat(saveFilePath, pathBase);
-        strcat(saveFilePath, "Backup_saveLocales.txt"); //create save file path
+        strncat(saveFilePath, pathBase, maxLocaleLength-1);
+        strncat(saveFilePath, "Backup_saveLocales.txt", maxLocaleLength-1-strlen(pathBase)); //create save file path
     }
 
 
@@ -175,6 +211,7 @@ int main()
 
     if( fdest == 0)
     {
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERROR: No destination location file found, giving up.\n");
         system("pause"); //pause for user input
@@ -216,6 +253,7 @@ int main()
     }
     if( (destinationLength == 0) || (k == 0) )
     {
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERROR: No destination location in file found, giving up.\n");
         system("pause"); //pause for user input
@@ -259,6 +297,7 @@ int main()
     fcmd = popen("net use", "r"); //run cmd.exe net use
     if (fcmd == NULL) //make sure something happened
     {
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERROR: Failed to run cmd.exe net use to figure out if drive given is a network drive, giving up.\n");
         system("pause"); //pause for user input
@@ -275,7 +314,7 @@ int main()
             i = 0; //counter, prevents over char array
             k = -1; //flag to signify over char array occured
             FLG_destinationNetwork = 1; //turn on flag that it is a networked destination locale
-            strcpy(retRecord,cmdReturn); //copy in the bit that we found to keep ~precious~
+            strncat(retRecord,cmdReturn,maxLocaleLength-1); //copy in the bit that we found to keep ~precious~
 
             /*while( ret[i] != NULL) //while not NULL idk I made it up it works go away is it ok sure it is
             {
@@ -348,10 +387,10 @@ int main()
             printf("*********NOTA BENE: Network drive is currently disconnected, attempting to force a reconnection. An error catch will trigger later if reconnection attempt fails.*********\n");
             //NOTE: Add string length checks
             //this could go bad most def yolo
-            strcat(destinationNetworkFixEngage, "net use "); //add to the string
-            strcat(destinationNetworkFixEngage, destinationTwoChar); //add to the string
-            strcat(destinationNetworkFixEngage, " "); //add to the string
-            strcat(destinationNetworkFixEngage, destinationUNC); //add to the string
+            strncat(destinationNetworkFixEngage, "net use ", maxLocaleLength-1); //add to the string
+            strncat(destinationNetworkFixEngage, destinationTwoChar, maxLocaleLength-1-strlen(destinationNetworkFixEngage)); //add to the string
+            strncat(destinationNetworkFixEngage, " ", maxLocaleLength-1-strlen(destinationNetworkFixEngage)); //add to the string
+            strncat(destinationNetworkFixEngage, destinationUNC, maxLocaleLength-1-strlen(destinationNetworkFixEngage)); //add to the string
 
             //strcat(destinationNetworkFixStart, "pushd "); //add to the string
             //strcat(destinationNetworkFixStart, destinationUNC); //add to the string
@@ -371,6 +410,7 @@ int main()
 
     if( fsaves == 0)
     {
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERROR: No backup source location file found, giving up.\n");
         system("pause"); //pause for user input
@@ -456,6 +496,7 @@ int main()
     if( saves_number == 0)
     {
         //NOTE: may not activate HOPE IT DOES ALWAYS
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
         printf("\n************************************************************************************\n");
         printf("ERROR: No backup source locations in file were found, giving up.\n");
         system("pause"); //pause for user input
@@ -650,6 +691,15 @@ int main()
 
     //char exeName[pathLength-k-1]; //prep
     pathExeLogLength = pathLength-4+12+2; //record, 11 for -backup.log and 3 for "'s and a \0 at tne end while -4 removes .exe
+    if(pathExeLogLength > (maxLocaleLength-1) )
+    {
+        //No fix right now, shouldn't happen
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
+        printf("\n************************************************************************************\n");
+        printf("ERROR: Log path length is greater than allocated - %d vs allocated %d.\n",pathExeLogLength,(maxLocaleLength-1) );
+        system("pause"); //pause for user input
+        return 4; //4 for sass
+    }
     char pathExeLog[pathExeLogLength]; //prep,cut off the exe
     char pathExeLogNoParenth[pathExeLogLength-2]; //prep, cut off the exe and dont add "'s
     pathExeLog[0] = '"';
@@ -678,7 +728,7 @@ int main()
     //***************************CREATE COMMAND AND CALL IT*************************************************************
     roboWarningLogNumberFinder = floor(log10(abs(saves_number))) + 1; //nifty calc for number of number places
     char roboWarningLogNumber[roboWarningLogNumberFinder]; //prep
-    int roboWarningLogSaveLength = roboWarningLogSaveAdditionLength + roboWarningLogNumberFinder; //only number it so its ez
+    int roboWarningLogSaveLength = roboWarningLogSaveAdditionLength + roboWarningLogNumberFinder+1; //only number it so its ez, +1 for null at the end
     char roboWarningLogSave[roboWarningLogSaveLength]; //prep
     for(i = 0; i < roboWarningLogNumberFinder; i++)
     {
@@ -687,6 +737,15 @@ int main()
     for(i = 0; i < roboWarningLogSaveLength; i++)
     {
         roboWarningLogSave[i] = '\0'; //prep with nulls
+    }
+    if( roboWarningLogSaveLength > (maxLocaleLength-1))
+    {
+        //No fix right now, shouldn't happen
+        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
+        printf("\n************************************************************************************\n");
+        printf("ERROR: Log file name length is greater than allocated - %d vs allocated %d.\n",roboWarningLogSaveLength,(maxLocaleLength-1) );
+        system("pause"); //pause for user input
+        return 4; //4 for sass
     }
 
     printf("\nBEGINNING BACKUP\n");
@@ -704,6 +763,31 @@ int main()
         strcat(command, pathExeLog);
         //printf("for %d, cmd is %s\n",i,command);
         printf("*********************Backing up: %s*********************\n",saves_locales[i]);
+        //system("pause");
+
+        //Below: update system tray icon with current backup info
+        for(j = 0; j < nidszTipLength; j++ ) //fillin with nulls
+        {
+            nid.szTip[j] = '\0'; //fill with nulls
+        }
+        for(j = 0; j < maxLocaleLength; j++) //fillin with nulls
+        {
+            sysTrayTemp1[j] = '\0'; // fill with nulls
+            sysTrayTemp2[j] = '\0'; // fill with nulls
+        }
+        strncpy(sysTrayTemp1, "Backing up",nidszTipLength);
+        snprintf(sysTrayTemp2,nidszTipLength," %d/%d: ",i+1,saves_number);
+        strncat(sysTrayTemp1, sysTrayTemp2, nidszTipLength - strlen(sysTrayTemp1) );
+        strncat(sysTrayTemp1, saves_locales[i], nidszTipLength-strlen(sysTrayTemp1) );
+        if( sysTrayTemp1[nidszTipLength-1] != '\0' )
+        {
+            sysTrayTemp1[nidszTipLength-3] = '.'; //dot dot
+            sysTrayTemp1[nidszTipLength-2] = '.'; //dot dot
+            sysTrayTemp1[nidszTipLength-1] = '\0'; //null terminate
+        }
+        strcpy(nid.szTip,sysTrayTemp1); //copy over the string
+
+        Shell_NotifyIcon(NIM_MODIFY, &nid); //updates text in system tray
 
         m = system(command); //run the command
         //m = 0; //for testing, disables robocopy error catch
@@ -737,7 +821,7 @@ int main()
             {
                 n = floor(log10(abs(i))) + 1; //calc number of digits
             }
-            sprintf(roboWarningLogNumber, "%d", i); //put the number into characters
+            snprintf(roboWarningLogNumber, roboWarningLogNumberFinder, "%d", i+1); //put the number into characters
             if( n < roboWarningLogNumberFinder ) //if too little digits
             {
                 for(j = 0; j < (roboWarningLogNumberFinder-n); j++)
@@ -751,13 +835,14 @@ int main()
             }
             else
             {
-                sprintf(roboWarningLogSave, "%d", i); //put in the digits as they take up the whole space (success)
+                snprintf(roboWarningLogSave, roboWarningLogSaveLength, "%d", i+1); //put in the digits as they take up the whole space (success)
             }
 
             for(j = roboWarningLogNumberFinder; j < (roboWarningLogSaveAdditionLength+roboWarningLogNumberFinder); j++)
             {
                 roboWarningLogSave[j] = roboWarningLogSaveAddition[j-roboWarningLogNumberFinder]; //put in the final .log stuff
             }
+            roboWarningLogSave[j+1] = '\0'; //real fast tack a null on after below comment
             //NOTABENE: I DID THIS REAL FAST AND I DID NOT FORCE A NULL AT THE END OF roboWarningLogSave so %s MAY GET WEIRD BUT THATS OK I HOPE WHATEVER F
 
             //printf("\n%s | and n = %d and est max # = %d\n",roboWarningLogSave,n,roboWarningLogNumberFinder);
@@ -768,6 +853,7 @@ int main()
             fchecklog = fopen(roboWarningLogSave,"w"); //prep to write log to new name
             if( fchecklog == NULL )
             {
+                ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
                 printf("\n************************************************************************************\n");
                 printf("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO %s IN THE Backup.exe directory. Exiting - fix it pls.\n",roboWarningLogSave);
                 fclose(fcheck); //wrap it up
@@ -794,6 +880,7 @@ int main()
                     k = 1;
                     if( c ==  roboErrorTwo[roboErrorTwoLength-1] )
                     {
+                        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
                         printf("\n************************************************************************************\n");
                         printf("ERROR 2 IN ROBOCOPY (Error code %d): Source location of '%s' was not found to exist. Backup of that folder has failed. Exiting - fix it pls.\n",m,saves_locales[i]);
                         fclose(fcheck); //wrap it up
@@ -806,6 +893,7 @@ int main()
                     k = 1;
                     if( c ==  roboErrorThree[roboErrorThreeLength-1] )
                     {
+                        ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
                         printf("\n************************************************************************************\n");
                         printf("ERROR 3 IN ROBOCOPY (Error code %d): Destination drive of '%s' was not found to exist. Backup of any files and folders has failed. Exiting - fix it pls.\n",m,destination);
                         fclose(fcheck); //wrap it up
@@ -825,6 +913,7 @@ int main()
                     j = j + 1; //increment
                 }
             }
+            ShowWindow( hWnd, SW_SHOWNA ); //bring the window back into the world because of an issue/error
             printf("\n************************************************************************************\n");
             printf("ERROR IN ROBOCOPY: Not sure what but the exit code wasn't 0 or 1. YOUR ERROR CODE: %d\n0 = OK, no new files\n1 = OK, new files\n2 = Extra files/directories detected see log (not error)\n",m);
             printf("4 = Mismatched files/directories detected see log (not error)\n8 = Some files/directories could not be copied and exceeded retry limit (seems solid error zone less srry)\n");
@@ -839,7 +928,40 @@ int main()
     printf("\n************************************************************************************\n");
 
     printf("\nWaiting 5 seconds so you can read some stuff and then exiting.\n");
+    strcpy(nid.szTip, "Basic Bitch Backup has completed successfully"); //tooltip for the icon
+    Shell_NotifyIcon(NIM_MODIFY, &nid); //updates system tray icon
+    nid.szTip[45] = '\0'; //null at the end of it
     sleep(5); //keep awake for 5 seconds after finished
+    Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
 
     return 0;
 }
+
+
+//This doesn't work at all - not sure how it's supposed to "capture" mouse without a constant loop (?) who knows everyone on the internet is bad at explaining anything
+//Miracle I got the system tray icon to work only C++ examples luckily very little changes sometimes
+//Def is hWnd the same? who knows
+/*
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch(msg)
+    {
+        //case WM_CREATE:
+        //     break;
+        case WM_MYMESSAGE:
+            switch(lParam)
+             {
+                case WM_LBUTTONDBLCLK:
+                     ShowWindow( hWnd, SW_SHOW ); //bring the window back into the world because of an issue/error
+                     break;
+                default:
+                    return DefWindowProc(hWnd, msg, wParam, lParam);
+             };
+             break;
+        default:
+            return DefWindowProc(hWnd, msg, wParam, lParam);
+    };
+
+    return 0;
+}
+*/
