@@ -20,6 +20,19 @@ E:\Music
 E:\ButtsNStuff
 And then it will copy those to the destination given above.
 
+3.a to make the Backup Starter.vbs file yourself you'll need to do easy steps:
+Right click wherever Backup.exe is in some white space
+Choose New -> Text Document
+Rename it all to Backup Starter.vbs, if you do not see .txt on the end this won't work.
+*If you do not see .txt on the end, open Notepad, click Save As, change it from .txt to all files, and Save As the Backup Starter.vbs name in the Backup.exe location.
+Now right click Backup Starter.vbs and choose edit, OR just open it in Notepad.
+Paste in these lines:
+'launch.vbs
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run "Backup.exe", 0
+WshShell = Null
+Save it. Done.
+
 3. To automate, hit WINDOWS KEY and type Task Scheduler then press enter.
 Click on Create Task... under Task Scheduler Library under Actions on the right pane.
 Name it BASIC BITCH BACKUP - don't enable Run as Admin, it will cause issues with networked drives (I think haven't tried)
