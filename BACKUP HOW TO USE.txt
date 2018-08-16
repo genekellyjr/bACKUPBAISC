@@ -4,6 +4,7 @@ It reads Backup_destinationLocale.txt for the backup destination.
 It reads Backup_saveLocales.txt for the source locations to be saved (backed-up, if you will).
 It reads the computer name and uses that as the main folder directory.
 It uses the save locations to make destination folder names and then calls ROBOCOPY (built into Windows) to mirror the source locations to the backup desination.
+You can see progress in the system tray icon.
 It will notify you if ROBOCOPY has an error, hopefully. Can't guarantee anything step off I did this in like 4 hours.
 ROBOCOPY is a boss. It will only copy what is to be copied, and won't recopy if its already there. This program just calls it *just right* in an easy way.
 
