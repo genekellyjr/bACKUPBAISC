@@ -32,7 +32,31 @@ Hit OK.
 Go to Actions tab.
 Hit New... at the bottom.
 Action: Start a program.
-Chose Browse... go to wherever Backup.exe is saved and double click on it. I put it in C:\Commands for easy finding.
+Chose Browse... go to wherever Backup.exe is saved. Double click on Backup Starter.vbs and double click on it. I put it in C:\Commands for easy finding.
+Cut and paste the text you got in the Program/script: box into the Add arguments (optional): box.
+Type wscript.exe into the Program/script: box.
+Cut everything from C:\ to the last \ from the Add arguments (optional): box. [Leave "'s in the Add arguments (optional): box]
+Paste it into the Start in (optional): box.
+Here is a step-by-step example:
+--Double Click on Backup Starter.vbs--
+Program/script: "C:\Commands\Backup\Backup Starter.vbs"
+Add arguments (optional): 
+Start in (optional):
+--Cut and paste Program/script: into Add arguments (optional): box--
+Program/script: 
+Add arguments (optional): "C:\Commands\Backup\Backup Starter.vbs"
+Start in (optional):
+--Type wscript.exe into Program/script: box--
+Program/script: wscript.exe
+Add arguments (optional): "C:\Commands\Backup\Backup Starter.vbs"
+Start in (optional):
+--Cut everything from C:\ to the last \ from Add arguments (optional):, paste in Start in (optional): [leave the "'s in Add arguments (optional):]--
+Program/script: wscript.exe
+Add arguments (optional): "Backup Starter.vbs"
+Start in (optional): C:\Commands\Backup\
+
+BAM DONE. the vbs (visual basic script) is like 4 lines that enable a windowless launch so only the system tray icon shows up initially. If there is an error the window will pop up. Logs will log minor issues (files that are protected and won't copy or whatever). The vbs script is what makes this annoying to launch.
+
 Hit OK.
 Go to Conditions tab.
 Uncheck the Power check marks, unless you're a laptop I guess and you want that.
