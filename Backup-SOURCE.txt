@@ -712,7 +712,8 @@ int main()
 
     }
 
-    char pathExeLogTemp[12] = "-backup.log\""; //prep constant insert
+    char pathExeLogTemp[12] = "-backup.log"; //prep constant insert
+    pathExeLogTemp[11] = '\0'; //null the end
     for(i = (pathLength-3); i < (pathExeLogLength-1);  i++)
     {
         pathExeLog[i] = pathExeLogTemp[i-(pathLength-3)];
