@@ -1,0 +1,25 @@
+This is gonna be real quick and msotly from memory (looked up some commands tho)
+
+Download Rust, install it
+
+Open cmd.exe
+
+use 
+	cd C:\Directory\Where\You\Want\The\Program\To\Build
+hit enter
+
+Type 
+	cargo new Backup --bin
+hit enter
+
+Put the "Cargo.toml" file in that folder and replace the old one
+
+You'll see a src folder
+Put the "main.rs" file in that folder and replace the old one
+
+Open cmd.exe again and/or (if still open) use
+	cd C:\Directory\Where\You\Want\The\Program\To\Build\Backup
+And then type
+	cargo build --release
+
+And you'll find the program in ..\Target\Release\Backup.exe

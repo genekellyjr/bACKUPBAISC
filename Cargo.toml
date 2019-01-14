@@ -1,0 +1,10 @@
+[package]
+name = "Backup"
+version = "1.0.0"
+authors = ["Gerald Kellsory Jr."]
+edition = "2018"
+
+[dependencies]
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "*", features = ["winuser","wincon","shellapi","minwindef","ntdef","libloaderapi","errhandlingapi","winerror","winbase"] }
