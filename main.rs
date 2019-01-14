@@ -724,7 +724,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             }
             
         }
-        else
+        else if( m > 16)
         {
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
