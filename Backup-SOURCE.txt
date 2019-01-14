@@ -6,7 +6,7 @@
 #define _WIN32_WINNT 0x0500 //must be before windows.h for mystical reasons such as widnows.h overwrites it with not right thing - for minimizing console window
 #include <windows.h>
 #include <shellapi.h> // make some system tray stuff go on
-#define WM_MYMESSAGE (WM_USER + 1) //for that tray icon
+#define WM_MYMESSAGE (WM_APP + 100) //for that tray icon
 #define sleep(x) Sleep(1000 * x) //fix for everywhere you google is Linux that is sleep while Windows is Sleep so it renames it and makes it count in seconds
 
 #define maxLocaleLength 1024 // Maximum length allowed
@@ -36,6 +36,8 @@ int main()
     size_t nidszTipLength = sizeof(nid.szTip) / sizeof(nid.szTip[0]); //gets the size of nid.szTip (tooltip length)
 
     Shell_NotifyIcon(NIM_ADD, &nid); //shows the icon
+
+    //printf("\nIDI_APPLICATION: %f\n",NULL);
     //system("pause");
 
     //Introduce program
@@ -156,6 +158,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERORR: Path exe finding error failure: %d\nI'm not sure why it failed or what to do about that so sorry lad&orlass\nEXITINGGG SRRY SO SRRY\n", last_error);
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 4;
     }
     /*else
@@ -192,10 +195,10 @@ int main()
         strncat(destinationFilePath, "Backup_destinationLocale.txt",maxLocaleLength-1-strlen(pathBase)); //create destination file path
     }
 
-    if( (pathLength+22) > maxLocaleLength ) //make sure we don't go over the limit (29 is length of Backup_saveLocales.txt and a '\0' null char)
+    if( (pathLength+22) > maxLocaleLength ) //make sure we don't go over the limit (22 is length of Backup_saveLocales.txt and a '\0' null char)
     {
         printf("Error - Max char limit for file location where save locales are held, rest was cut off - only using relative path %s\nIt's gonna error out later sorry so sorry lass&orlad\n","Backup_saveLocales.txt");
-        strncat(destinationFilePath, "Backup_saveLocales.txt", maxLocaleLength-1); //create destination file path
+        strncat(saveFilePath, "Backup_saveLocales.txt", maxLocaleLength-1); //create destination file path
     }
     else
     {
@@ -215,6 +218,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: No destination location file found, giving up.\n");
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 1; //1 for sass
     }
 
@@ -257,6 +261,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: No destination location in file found, giving up.\n");
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 2; //2 for sass
     }
 
@@ -301,6 +306,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: Failed to run cmd.exe net use to figure out if drive given is a network drive, giving up.\n");
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 1; //1 for sass
     }
     // Read the output a line at a time, dunno how to do it any way else, tried by character #failure
@@ -414,6 +420,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: No backup source location file found, giving up.\n");
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 1; //1 for sass
     }
 
@@ -500,6 +507,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: No backup source locations in file were found, giving up.\n");
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 2; //2 for sass
     }
     printf("Number of save locations: %d\n",saves_number); //print save number
@@ -690,7 +698,7 @@ int main()
     //printf("First / happened at %d\n",k);
 
     //char exeName[pathLength-k-1]; //prep
-    pathExeLogLength = pathLength-4+12+2; //record, 11 for -backup.log and 3 for "'s and a \0 at tne end while -4 removes .exe
+    pathExeLogLength = pathLength-4+13+1; //record, 13 for -backup.log"'s and 1 for the \0 at the end while -4 removes .exe
     if(pathExeLogLength > (maxLocaleLength-1) )
     {
         //No fix right now, shouldn't happen
@@ -698,6 +706,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: Log path length is greater than allocated - %d vs allocated %d.\n",pathExeLogLength,(maxLocaleLength-1) );
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 4; //4 for sass
     }
     char pathExeLog[pathExeLogLength]; //prep,cut off the exe
@@ -712,12 +721,13 @@ int main()
 
     }
 
-    char pathExeLogTemp[12] = "-backup.log"; //prep constant insert
-    pathExeLogTemp[11] = '\0'; //null the end
+    char pathExeLogTemp[13] = "-backup.log\""; //prep constant insert
+    pathExeLogTemp[12] = '\0'; //null the end
     for(i = (pathLength-3); i < (pathExeLogLength-1);  i++)
     {
         pathExeLog[i] = pathExeLogTemp[i-(pathLength-3)];
     }
+    pathExeLog[pathExeLogLength-1] = '\0'; //make sure it is nulled
     for(i = 1; i < (pathExeLogLength-2); i++ )
     {
         pathExeLogNoParenth[i-1] = pathExeLog[i]; //record
@@ -727,7 +737,7 @@ int main()
 
 
     //***************************CREATE COMMAND AND CALL IT*************************************************************
-    roboWarningLogNumberFinder = floor(log10(abs(saves_number))) + 1; //nifty calc for number of number places
+    roboWarningLogNumberFinder = floor(log10(abs(saves_number))) + 1; //nifty calc for number of number places, e.g. 10 is 2, 100 is 3
     char roboWarningLogNumber[roboWarningLogNumberFinder]; //prep
     int roboWarningLogSaveLength = roboWarningLogSaveAdditionLength + roboWarningLogNumberFinder+1; //only number it so its ez, +1 for null at the end
     char roboWarningLogSave[roboWarningLogSaveLength]; //prep
@@ -746,6 +756,7 @@ int main()
         printf("\n************************************************************************************\n");
         printf("ERROR: Log file name length is greater than allocated - %d vs allocated %d.\n",roboWarningLogSaveLength,(maxLocaleLength-1) );
         system("pause"); //pause for user input
+        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
         return 4; //4 for sass
     }
 
@@ -816,11 +827,11 @@ int main()
         {
             if(i == 0 )
             {
-                n = 1; //math on logs no go good with 0, force digit to be 1
+                n = 1; //math on logs no go good with 0, force digit to be 1, , e.g. 1 is 1, 10 is 2
             }
             else
             {
-                n = floor(log10(abs(i))) + 1; //calc number of digits
+                n = floor(log10(abs(i))) + 1; //calc number of digits, e.g. 10 is 2, 100 is 3
             }
             snprintf(roboWarningLogNumber, roboWarningLogNumberFinder, "%d", i+1); //put the number into characters
             if( n < roboWarningLogNumberFinder ) //if too little digits
@@ -859,6 +870,7 @@ int main()
                 printf("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO %s IN THE Backup.exe directory. Exiting - fix it pls.\n",roboWarningLogSave);
                 fclose(fcheck); //wrap it up
                 system("pause"); //pause for user input
+                Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
                 return 3; //return 3 for sass
             }
             while( ( c = fgetc(fcheck) ) != EOF )
@@ -886,6 +898,7 @@ int main()
                         printf("ERROR 2 IN ROBOCOPY (Error code %d): Source location of '%s' was not found to exist. Backup of that folder has failed. Exiting - fix it pls.\n",m,saves_locales[i]);
                         fclose(fcheck); //wrap it up
                         system("pause"); //pause for user input
+                        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
                         return 3; //return 3 for sass
                     }
                 }
@@ -899,6 +912,7 @@ int main()
                         printf("ERROR 3 IN ROBOCOPY (Error code %d): Destination drive of '%s' was not found to exist. Backup of any files and folders has failed. Exiting - fix it pls.\n",m,destination);
                         fclose(fcheck); //wrap it up
                         system("pause"); //pause for user input
+                        Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
                         return 3; //return 3 for sass
                     }
                 }
@@ -921,6 +935,7 @@ int main()
             printf("16 = nothing copied due to issue, check log, there's a catch for 2 #16 errors already too!\n Exiting - fix it pls, (SEE LOG FILE!).\n");
             fclose(fcheck); //wrap it up
             system("pause"); //pause for user input
+            Shell_NotifyIcon(NIM_DELETE, &nid); //deletes system tray icon when done
             return 3; //return 3 for sass
         }
     }
