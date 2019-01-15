@@ -387,7 +387,8 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
         }
         else //otherwise it's local Z:\ and gets a prefix
         {
-            destinationUNC = format!("{}{}",UNC_PREFIX.to_string(),destination); //make UNC path anyway using local \\?\ prefix
+            //destinationUNC = format!("{}{}",UNC_PREFIX.to_string(),destination); //make UNC path anyway using local \\?\ prefix
+            destinationUNC = format!("{}",destination); //robocopy does NOT like UNC so skipping - and this way prevents borrowing issues that I've never bothered to learn
             //destinationUNCStr = &*destinationUNC; //convert to &str
         }
         
