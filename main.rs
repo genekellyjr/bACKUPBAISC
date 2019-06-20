@@ -10,7 +10,7 @@ use std::ptr::null_mut; //use a null pointer (I think)
 use std::char; //use some char
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt; //convert from string to UTF-16 (1 or 2 uint16 apparently)
-use std::io::prelude::*; //provides error handling for writing files
+//use std::io::prelude::*; //provides error handling for writing files - bypassed now with renaming files
 
 //-----Define Constants-----
 const MAX_COMPUTERNAME_LENGTH: u32 = 32; //apparently it's really 15 but why not be sure because on MAC systems it could be 31 + null
@@ -507,6 +507,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
     let pathExeLogNoParenth = format!("{}{}",pathNoExe,pathExeLogPostfix); //build the log file path with no "'s
     let pathExeLogNoParenthStr: &str = &*pathExeLogNoParenth; //these two types of strings are hella annoying
 
+    let roboWarningLogSavePathTempStr = &pathLocalStr[0..pathLocalStr.rfind("\\").unwrap()]; //Gets the exe path, cuts off the \Backup.exe
     //println!("TEST-log path:{}\nlog path w/o \"'s:{}",pathExeLog,pathExeLogNoParenth);
 
 
@@ -609,82 +610,53 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
 
-            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again my fix this issue (idk bb it did when I made this code to handle this)");
+            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this)");
             println!("The source directory was {}\nThe log file can be found in {} (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n",saves_locales[i as usize],roboWarningLogSave);
+                        
+            let roboWarningLogSavePathRenameStr = format!("{}\\{}",roboWarningLogSavePathTempStr,roboWarningLogSave); //makes full path to the ##FILECOPYFAILURE.log
+            let roboWarningLogSavePathRename = roboWarningLogSavePathRenameStr.to_string(); //convert ot string for printing later b/c string crap
 
-            let pathExeLogNoParenthPath = std::path::Path::new(pathExeLogNoParenthStr); //prep a path special thing (this fixes permissions crap)
-            let fLogOutput = std::fs::read_to_string(pathExeLogNoParenthPath).expect("ERROR: Unable to read file. Giving up soon."); //read log
-
-            // Open a file in write-only mode, returns `io::Result<File>`
-            let roboWarningLogSavePath = std::path::Path::new(&*roboWarningLogSave); //prep a path special thing (this fixes permissions crap)
-            let mut fLogRewrite = match std::fs::File::create(&roboWarningLogSavePath) //prep to write log to new name (new next level, string conversion in-line)
+            //Rename the file instead of copying it to a new file - had crashes copying large files (~30MB) with the Rust std::fs::read_to_string - should be faster anyway
+            match std::fs::rename(pathExeLogNoParenthStr,roboWarningLogSavePathRenameStr) //match to catch error or OK
             { 
                 Err(_why) => 
                 {
                     unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
                     println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T CREATE FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
+                    println!("ERROR TRYING TO RENAME ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T RENAME FILE, IDK WHY IT FAILED TO MAKE RENAME THE LOG FILE FROM\n{}\n TO \n{}\n IN THE Backup.exe directory. Exiting - fix it pls.",pathExeLogNoParenthStr,roboWarningLogSavePathRename);
                     let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
                     unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
                     return 3; //return 3 for sass
                 },
-                Ok(fLogRewrite) => fLogRewrite,
+                Ok(roboWarningLogSavePathRename) => roboWarningLogSavePathRename, //I just put something here cause just 1 made it >:V angry idk why
             };
-
-            // Write the `fLogOutput` string to `fLogRewrite`, returns `io::Result<()>`
-            match fLogRewrite.write_all(fLogOutput.as_bytes()) 
-            {
-                Err(_why) => 
-                {
-                    unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
-                    println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T WRITE TO FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
-                    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
-                    unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
-                    return 3; //return 3 for sass
-                },
-                Ok(fLogRewrite) => fLogRewrite,
-            }
-
+            
         }
         else if(m == 16) //general error check is occuring - specific ones are checked for and if not found the general error is issued
         {
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
 
-            let pathExeLogNoParenthPath = std::path::Path::new(pathExeLogNoParenthStr); //prep a path special thing (this fixes permissions crap)
-            let fLogOutput = std::fs::read_to_string(pathExeLogNoParenthPath).expect("ERROR: Unable to read file. Giving up soon."); //read log
-            
-            // Open a file in write-only mode, returns `io::Result<File>`
-            let roboWarningLogSavePath = std::path::Path::new(&*roboWarningLogSave); //prep a path special thing (this fixes permissions crap)
-            let mut fLogRewrite = match std::fs::File::create(&roboWarningLogSavePath) //prep to write log to new name (new next level, string conversion in-line)
+            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this)");
+            println!("The source directory was {}\nThe log file can be found in {} (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n",saves_locales[i as usize],roboWarningLogSave);
+                        
+            let roboWarningLogSavePathRenameStr = format!("{}\\{}",roboWarningLogSavePathTempStr,roboWarningLogSave); //makes full path to the ##FILECOPYFAILURE.log
+            let roboWarningLogSavePathRename = roboWarningLogSavePathRenameStr.to_string(); //convert ot string for printing later b/c string crap
+
+            //Rename the file instead of copying it to a new file - had crashes copying large files (~30MB) with the Rust std::fs::read_to_string - should be faster anyway
+            match std::fs::rename(pathExeLogNoParenthStr,roboWarningLogSavePathRenameStr) //match to catch error or OK
             { 
                 Err(_why) => 
                 {
                     unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
                     println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T CREATE FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
+                    println!("ERROR TRYING TO RENAME ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T RENAME FILE, IDK WHY IT FAILED TO MAKE RENAME THE LOG FILE FROM\n{}\n TO \n{}\n IN THE Backup.exe directory. Exiting - fix it pls.",pathExeLogNoParenthStr,roboWarningLogSavePathRename);
                     let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
                     unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
                     return 3; //return 3 for sass
                 },
-                Ok(fLogRewrite) => fLogRewrite,
+                Ok(roboWarningLogSavePathRename) => roboWarningLogSavePathRename, //I just put something here cause just 1 made it >:V angry idk why
             };
-
-            // Write the `fLogOutput` string to `fLogRewrite`, returns `io::Result<()>`
-            match fLogRewrite.write_all(fLogOutput.as_bytes()) 
-            {
-                Err(_why) => 
-                {
-                    unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
-                    println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T WRITE TO FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
-                    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
-                    unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
-                    return 3; //return 3 for sass
-                },
-                Ok(fLogRewrite) => fLogRewrite,
-            }
 
             if( roboOutput.contains(roboError2) ) //check if output contains error 2
             {
@@ -715,6 +687,9 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             }
             else
             {
+                //let pathExeLogNoParenthPath = std::path::Path::new(pathExeLogNoParenthStr); //prep a path special thing (this fixes permissions crap)
+                let fLogOutput = std::fs::read_to_string(roboWarningLogSavePathRename).expect("ERROR: Unable to read file. Giving up soon."); //read log
+
                 unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
                 println!("\n************************************************************************************");
                 println!("ERROR IN ROBOCOPY: Not sure what the error code is exactly, but there's a bunch. Here's the output from Robocopy, and the log file will have very similar info.\n{}",fLogOutput);
@@ -730,39 +705,26 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
 
-            let pathExeLogNoParenthPath = std::path::Path::new(pathExeLogNoParenthStr); //prep a path special thing (this fixes permissions crap)
-            let fLogOutput = std::fs::read_to_string(pathExeLogNoParenthPath).expect("ERROR: Unable to read file. Giving up soon."); //read log
-            
-            // Open a file in write-only mode, returns `io::Result<File>`
-            let roboWarningLogSavePath = std::path::Path::new(&*roboWarningLogSave); //prep a path special thing (this fixes permissions crap)
-            let mut fLogRewrite = match std::fs::File::create(&roboWarningLogSavePath) //prep to write log to new name (new next level, string conversion in-line)
+            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this)");
+            println!("The source directory was {}\nThe log file can be found in {} (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n",saves_locales[i as usize],roboWarningLogSave);
+                        
+            let roboWarningLogSavePathRenameStr = format!("{}\\{}",roboWarningLogSavePathTempStr,roboWarningLogSave); //makes full path to the ##FILECOPYFAILURE.log
+            let roboWarningLogSavePathRename = roboWarningLogSavePathRenameStr.to_string(); //convert ot string for printing later b/c string crap
+
+            //Rename the file instead of copying it to a new file - had crashes copying large files (~30MB) with the Rust std::fs::read_to_string - should be faster anyway
+            match std::fs::rename(pathExeLogNoParenthStr,roboWarningLogSavePathRenameStr) //match to catch error or OK
             { 
                 Err(_why) => 
                 {
                     unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
                     println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T CREATE FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
+                    println!("ERROR TRYING TO RENAME ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T RENAME FILE, IDK WHY IT FAILED TO MAKE RENAME THE LOG FILE FROM\n{}\n TO \n{}\n IN THE Backup.exe directory. Exiting - fix it pls.",pathExeLogNoParenthStr,roboWarningLogSavePathRename);
                     let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
                     unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
                     return 3; //return 3 for sass
                 },
-                Ok(fLogRewrite) => fLogRewrite,
+                Ok(roboWarningLogSavePathRename) => roboWarningLogSavePathRename, //I just put something here cause just 1 made it >:V angry idk why
             };
-
-            // Write the `fLogOutput` string to `fLogRewrite`, returns `io::Result<()>`
-            match fLogRewrite.write_all(fLogOutput.as_bytes()) 
-            {
-                Err(_why) => 
-                {
-                    unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
-                    println!("\n************************************************************************************");
-                    println!("ERROR TRYING TO SAVE ROBOCOPY LOG OF A FILE COPY FAILURE: COULDN'T WRITE TO FILE, IDK WHY IT FAILED TO MAKE A COPY OF THE LOG FILE TO {} IN THE Backup.exe directory. Exiting - fix it pls.",roboWarningLogSave);
-                    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
-                    unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
-                    return 3; //return 3 for sass
-                },
-                Ok(fLogRewrite) => fLogRewrite,
-            }
 
             unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOWNA) }; //bring the window back into the world because of an issue/error
             println!("\n************************************************************************************");
