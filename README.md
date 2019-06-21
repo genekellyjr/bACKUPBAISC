@@ -20,7 +20,7 @@ Copy files you want to a backup drive reliably and easily with minimal effort, h
 
 4. See BACKUP HOW TO USE.txt step 3 for how to set Backup.exe on a regular schedule using Task Scheduler. There is a vbs script included that launches it without a brief pop-up that interupts full screen things (like movies). If you don't want to use the vbs script, you can launch Backup.exe directly - I wasn't able to surpress the initial instantaneous window pop-up without the vbs script. The BACKUP HOW TO USE.txt tells you how to make the vbs script yourself if you like as a bonus.
 
-5. Don't run Backup.exe as Admin, isn't needed and it will mess with networked drives. Basically if Z:\ is a network share that is really \\\servercomp\share\ only the user mode has \\\servercomp\share\ mapped to Z:\, the admin mode doesn't have Z:\ mapped to \\\servercomp\share\. Top troll from Windows. TBH you can get around it by replacing Z:\ with \\servercomp\share\ in Backup-destination.txt if you really need 2
+5. Don't run Backup.exe as Admin, isn't needed and it will mess with networked drives. Basically if Z:\ is a network share that is really \\\servercomp\share\ only the user mode has \\\servercomp\share\ mapped to Z:\, the admin mode doesn't have Z:\ mapped to \\\servercomp\share\. Top troll from Windows. TBH you can get around it by replacing Z:\ with \\\servercomp\share\ in Backup-destination.txt if you really need 2
 
 
 **HOW IT WORKS:**
