@@ -33,6 +33,20 @@ fn main() //an error handler function for Rust because it needs help! NOTE THAT 
 
 fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error handler because Rust is special
 {
+    let alreadyRunningCheck = Command::new("QPROCESS")
+        .arg("Backup.exe") //hard-code Backup.exe, so to run multiple instances rename your Backup.exe to anything else and go at it
+        .output().unwrap(); //run cmd.exe with robocopy options
+    let alreadyRunningCheckOutput = String::from_utf8_lossy(&alreadyRunningCheck.stdout); //get the output
+    println!("TEST-alreadyRunningCheck output: {}",alreadyRunningCheckOutput);
+    let mut alreadyRunningCheckOutputStr: &str = &*alreadyRunningCheckOutput; //these two types of strings are hella annoying
+    let mut alreadyRunningCheckLines = alreadyRunningCheckOutputStr.lines();
+    //println!("{:?}",alreadyRunningCheckLines.count());
+    //let _ = Command::new("cmd.exe").arg("/c").arg("pause").status(); // wait for user input
+    if( alreadyRunningCheckLines.count() > 2 ) // if m == 0, Backup.exe is already running. So don't run it again.
+    {
+        return 1776; //return exit code (using extra function allows this to work)
+    }
+
     //Suppress command window so it doesn't steal screen real-estate and bump out of movies etc.
     // to navigate calling with the winapi "crate" use the search function at link
     // https://docs.rs/winapi/*/x86_64-pc-windows-msvc/winapi/um/wincon/fn.GetConsoleWindow.html
@@ -52,15 +66,15 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
     let mut trayToolTipStepOS = OsStr::new(trayToolTipStrStep); //convert to OS string format or something
     let mut trayToolTipStepUTF16 = trayToolTipStepOS.encode_wide().collect::<Vec<u16>>(); //now actually convert to UTF16 format for the OS
     if( trayToolTipStepUTF16.len() > ((MAX_SZTIP_LEN-1) as usize) ) //leave room for null at the end (check UTF-16 for length b/c that's what matters to the OS!)
-        {
-            //If the length is greater than MAX_SZTIP_LEN-1 then the null at the end is def gone and the letters need to be elipsised away...
-            trayToolTipStepUTF16.truncate(MAX_SZTIP_LEN as usize); //make sure it isn't bigger than MAX_SZTIP_LEN
-            //trayToolTipStepUTF16.splice( ((MAX_SZTIP_LEN-3) as usize)..(MAX_SZTIP_LEN as usize), ); //vecs are dumb
-            trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 3 ] = 46; //force a .
-            trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 2 ] = 46; //force a . 
-            trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 1 ] = 0; //force a null terminator at the end
-            //making sure this doesn't do anything weird with UTF16 characters that are 2xUTF16s together is hard and I can't test it, so I won't sorry
-        }
+    {
+        //If the length is greater than MAX_SZTIP_LEN-1 then the null at the end is def gone and the letters need to be elipsised away...
+        trayToolTipStepUTF16.truncate(MAX_SZTIP_LEN as usize); //make sure it isn't bigger than MAX_SZTIP_LEN
+        //trayToolTipStepUTF16.splice( ((MAX_SZTIP_LEN-3) as usize)..(MAX_SZTIP_LEN as usize), ); //vecs are dumb
+        trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 3 ] = 46; //force a .
+        trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 2 ] = 46; //force a . 
+        trayToolTipStepUTF16[ (MAX_SZTIP_LEN as usize) - 1 ] = 0; //force a null terminator at the end
+        //making sure this doesn't do anything weird with UTF16 characters that are 2xUTF16s together is hard and I can't test it, so I won't sorry
+    }
     trayToolTipInt[0..trayToolTipStepUTF16.len()].copy_from_slice(&trayToolTipStepUTF16); //record it in that nice integer holder
 
     //Start a holder for the system tray icon
@@ -96,7 +110,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
     //***************************DECLARE CONSTANT-SIZED VARIABLES*************************************************************
     //COUNTERS AND FLAGS THAT ARE REUSED A LOT #NOTMYVARIABLE
     let mut k: u64; //legit only counter or flag
-    let mut m: u64; //legit only counter or flag
+    let mut m: u64; //legit only counter or flag - DECLARED ABOVE NOW
 
     //COMMAND-RELATED STUFF
     //let commandRobo = "robocopy"; //make sure you count those numbers
@@ -568,7 +582,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             .arg(commandOpt6)
             .arg(commandOpt7)
             .arg(commandLogStr)
-            .output().unwrap(); //run cmd.exe net use 
+            .output().unwrap(); //run cmd.exe with robocopy options
         let roboOutput = String::from_utf8_lossy(&robo.stdout); //get the output
         //let roboOutputStr: &str = &*roboOutput; //these two types of strings are hella annoying
         //println!("TEST-robo output: {}",roboOutput);
