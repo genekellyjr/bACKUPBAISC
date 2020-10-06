@@ -7,6 +7,10 @@
 Copy files you want to a backup drive reliably and easily with minimal effort, hassle, and care. Do it way more reliably & easier than File History (Backup program built into Windows - called Backup in the Settings Win10 program). NOTE: does not do file history. Just backs up. It's basic. But it works, which I think is more important.
 
 
+**BIG WARN:**
+The VBS script makes Basic Bitch Backup be hidden on startup, but currently windows defender av blocks it by default. You can set your AV to allow the VBS script manually, or you can just call Backup.exe directly. Calling the VBS script makes no window at all pop up. Calling Backup.exe makes a window instantaneously pop up and interrupt full-screen things like movies or games, but it hides itself immediately after starting. In either case, the window will pop up if there's an error.
+
+
 **USAGE:**
 
 1. Download release files, put all in same folder to run from (maybe C:\BackupProgram why not)
