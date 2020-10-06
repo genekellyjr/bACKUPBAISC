@@ -1,3 +1,5 @@
+//declare it's a console program
+#![windows_subsystem = "console"]
 //disable annoying warning about my variable names and my parenthesis use
 #![allow(non_snake_case)] //welcome to namingThingsLikeThis
 #![allow(unused_parens)] //welcome to if( stuff == ffuts )
@@ -33,11 +35,20 @@ fn main() //an error handler function for Rust because it needs help! NOTE THAT 
 
 fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error handler because Rust is special
 {
+    //Suppress command window so it doesn't steal screen real-estate and bump out of movies etc.
+    // to navigate calling with the winapi "crate" use the search function at link
+    // https://docs.rs/winapi/*/x86_64-pc-windows-msvc/winapi/um/wincon/fn.GetConsoleWindow.html
+    let hWnd = winapi::um::wincon::GetConsoleWindow; //gets the current console window handle inspired by https://stackoverflow.com/questions/11812095/hide-the-console-window-of-a-c-program via Anthropos
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548%28v=vs.85%29.aspx
+    // unsafe { winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_MINIMIZE) }; //won't hide the window without SW_MINIMIZE https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx check this
+    unsafe { winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_HIDE) }; //Hide window [works w/o SW_MINIMIZE now!]
+    // unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOW) }; //Show window
+
     let alreadyRunningCheck = Command::new("QPROCESS")
         .arg("Backup.exe") //hard-code Backup.exe, so to run multiple instances rename your Backup.exe to anything else and go at it
         .output().unwrap(); //run cmd.exe with robocopy options
     let alreadyRunningCheckOutput = String::from_utf8_lossy(&alreadyRunningCheck.stdout); //get the output
-    println!("TEST-alreadyRunningCheck output: {}",alreadyRunningCheckOutput);
+    // println!("TEST-alreadyRunningCheck output: {}",alreadyRunningCheckOutput);
     let mut alreadyRunningCheckOutputStr: &str = &*alreadyRunningCheckOutput; //these two types of strings are hella annoying
     let mut alreadyRunningCheckLines = alreadyRunningCheckOutputStr.lines();
     //println!("{:?}",alreadyRunningCheckLines.count());
@@ -46,16 +57,6 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
     {
         return 1776; //return exit code (using extra function allows this to work)
     }
-
-    //Suppress command window so it doesn't steal screen real-estate and bump out of movies etc.
-    // to navigate calling with the winapi "crate" use the search function at link
-    // https://docs.rs/winapi/*/x86_64-pc-windows-msvc/winapi/um/wincon/fn.GetConsoleWindow.html
-    let hWnd = winapi::um::wincon::GetConsoleWindow; //gets the current console window handle inspired by https://stackoverflow.com/questions/11812095/hide-the-console-window-of-a-c-program via Anthropos
-    // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548%28v=vs.85%29.aspx
-    //unsafe { winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_MINIMIZE) }; //won't hide the window without SW_MINIMIZE https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx check this
-    //unsafe { winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_HIDE) }; //Hide window
-    //unsafe{ winapi::um::winuser::ShowWindow(hWnd(), winapi::um::winuser::SW_SHOW) }; //Show window
-
 
     //System Tray Icon support - here it is
     let WM_MYMESSAGE = winapi::um::winuser::WM_APP + 100; //prep WM_MYMESSAGE
@@ -114,14 +115,29 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
 
     //COMMAND-RELATED STUFF
     //let commandRobo = "robocopy"; //make sure you count those numbers
-    //let commandOptsComb = "/MIR /copy:DAT /MT:32 /Z /R:2 /W:03 /v /LOG:"; //make sure you count those numbers //removed /eta
+    //let commandOptsComb = "/MIR /copy:DAT /MT:32 /Z /R:2 /W:03 /v /a-:a /LOG:"; //make sure you count those numbers //removed /eta
     let commandOpt1 = "/MIR"; //mirror directories
-    let commandOpt2 = "/copy:DAT"; //copy attributes
-    let commandOpt3 = "/MT:32"; //use 32 I/O threads (low CPU still, but better bandwidth utilization)
-    let commandOpt4 = "/Z"; //idr
-    let commandOpt5 = "/R:2"; //Retry twice
-    let commandOpt6 = "/W:03"; //Wait 3 sec between tries
-    let commandOpt7 = "/v"; //verbose logging
+    let commandOpt2 = "/COPY:DAT"; //copy data/attributes/time [ignore Security, Owner, aUdit info - if going to Linux/Unix NAs drive SOU bits won't work anyway]
+    let commandOpt3 = "/DCOPY:DAT"; //Copy all directory info [directory time stamps same as original]
+    let commandOpt4 = "/a-:a"; //ignore archive attribute [which causes Modified instead of Same to be put for the files it copies]
+    let commandOpt5 = "/XJD"; //exlude junction points from source directories, apparently they can lead to infinite loop situations
+    let commandOpt6 = "/MT:32"; //use 32 I/O threads (low CPU still, but better bandwidth utilization)
+    let commandOpt7 = "/Z"; //restartable mode - so can pick up if it was interrupted mid-file transfer
+    let commandOpt8 = "/R:2"; //Retry twice
+    let commandOpt9 = "/W:03"; //Wait 3 sec between tries
+    //let commandOpt10 = "/J"; //copy using unbuffered I/O which is good for multi-GB, contiguous files
+    //let commandOpt10 = "/FFT"; //Replaces NTFS time stamps with FAT time stamps that are every 2 seconds [good for over network where devices might have slightly different clocks]
+    let commandOpt10 = "/NP"; //Don't display progress - may speed things up [may hide issues, but logging should fill in]
+    let commandOpt11 = "/XD"; //Excludes things you don't want robocopy copying
+    let commandOpt11p1 = "\"Recycler\""; //something to exclude
+    let commandOpt11p2 = "\"Recycled\""; //something to exclude
+    let commandOpt11p3 = "\"$Recycle.bin\""; //something to exclude
+    let commandOpt11p4 = "\"System Volume Information\""; //something to exclude
+    let commandOpt12 = "/XF"; //Excludes things you don't want robocopy to copy  [https://serverfault.com/questions/920018/apparently-robocopy-does-not-understand-windows-server-2016-deduplication-is-th]
+    let commandOpt12p1 = "\"pagefile.sys\""; //something to exclude
+    let commandOpt12p2 = "\"swapfile.sys\""; //something to exclude
+    let commandOpt12p3 = "\"hiberfil.sys\""; //something to exclude
+    let commandOpt13 = "/v"; //verbose logging
 
     let roboError2 = "ERROR 2 (0x00000002) Accessing Source Directory"; //within robocopy log file - error means source directory does not exist
     let roboError3 = "ERROR 3 (0x00000003) Creating Destination Directory"; //within robocopy log file - error means destination directory does not exist
@@ -569,7 +585,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
         nid.szTip = trayToolTipInt; //tooltip for the icon
         unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) }; //updates system tray icon
         //-----end alg for updating the tooltip in Rust-----
-        
+
         //let m = Command::new("robocopy").arg(commandStr).output().unwrap(); //one shot does not work here
         let robo = Command::new("robocopy")
             .arg(commandSaveStr)
@@ -581,6 +597,19 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             .arg(commandOpt5)
             .arg(commandOpt6)
             .arg(commandOpt7)
+            .arg(commandOpt8)
+            .arg(commandOpt9)
+            .arg(commandOpt10)
+            .arg(commandOpt11)
+            .arg(commandOpt11p1)
+            .arg(commandOpt11p2)
+            .arg(commandOpt11p3)
+            .arg(commandOpt11p4)
+            .arg(commandOpt12)
+            .arg(commandOpt12p1)
+            .arg(commandOpt12p2)
+            .arg(commandOpt12p3)
+            .arg(commandOpt13)
             .arg(commandLogStr)
             .output().unwrap(); //run cmd.exe with robocopy options
         let roboOutput = String::from_utf8_lossy(&robo.stdout); //get the output
@@ -651,7 +680,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
 
-            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this)");
+            println!("\nWARNING in Robocopy: Failed to copy ANY files. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this). Robocopy might not make a log since no files were copied, and so a 'couldn't rename log file' error will follow, most likely.");
             println!("The source directory was {}\nThe log file can be found in {} (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n",saves_locales[i as usize],roboWarningLogSave);
                         
             let roboWarningLogSavePathRenameStr = format!("{}\\{}",roboWarningLogSavePathTempStr,roboWarningLogSave); //makes full path to the ##FILECOPYFAILURE.log
@@ -719,7 +748,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
             let roboWarningLogSave = format!("{:02}{}", i+1,roboWarningLogSaveAddition); //create log file name in format ##FILECOPYFAILURE.log e.g. 04FILECOPYFAILURE.log to show 4th place is failure
             //let roboWarningLogSaveStr: &str = &*roboWarningLogSave; //these two types of strings are hella annoying
 
-            println!("\nWARNING in Robocopy: Failed to copy some files but other files copied successfully. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this)");
+            println!("\nWARNING in Robocopy: Failed to copy ANY files. Re-running Backup.exe again may fix this issue (idk bb it did when I made this code to handle this). Robocopy might not make a log since no files were copied, and so a 'couldn't rename log file' error will follow, most likely.");
             println!("The source directory was {}\nThe log file can be found in {} (corresponds to line # in the Backup_saveLocales.txt list)\nLog file is in same directory as main log file and Backup.exe\nCONTINUING ON\n",saves_locales[i as usize],roboWarningLogSave);
                         
             let roboWarningLogSavePathRenameStr = format!("{}\\{}",roboWarningLogSavePathTempStr,roboWarningLogSave); //makes full path to the ##FILECOPYFAILURE.log
@@ -776,7 +805,7 @@ fn realMain() -> i32 //this is the real stuff, uses fn main() above as an error 
     nid.szTip = trayToolTipInt; //tooltip for the icon
     unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) }; //updates system tray icon
     //-----end alg for updating the tooltip in Rust-----
-
+    
     println!("\nWaiting 5 seconds so you can read some stuff and then exiting.");
     let _ = Command::new("cmd.exe").arg("/c").arg("timeout 5").status();
     unsafe{ winapi::um::shellapi::Shell_NotifyIconW(winapi::um::shellapi::NIM_DELETE, &mut nid) }; //deletes system tray icon when done
